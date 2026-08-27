@@ -192,6 +192,7 @@ const DialogFooter = styled.div`
 export default function AssignRoleModal({ onClose, onAssign }) {
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState([])
+  const [query, setQuery] = useState('')
   const wrapRef = useRef(null)
 
   useEffect(() => {
@@ -211,6 +212,7 @@ export default function AssignRoleModal({ onClose, onAssign }) {
         ? prev.filter(m => m.id !== member.id)
         : [...prev, member]
     )
+    setQuery('')
   }
 
   const remove = (id) => {
@@ -222,6 +224,15 @@ export default function AssignRoleModal({ onClose, onAssign }) {
     ...teamMembers,
     { id: 'rusty-admin', name: 'Rusty Admin', role: "Admin (can't change your own role)", disabled: true },
   ]
+
+  const q = query.trim().toLowerCase()
+  const filtered = q
+    ? options.filter(m =>
+        m.name.toLowerCase().includes(q) ||
+        (m.email || '').toLowerCase().includes(q) ||
+        m.role.toLowerCase().includes(q)
+      )
+    : options
 
   return (
     <Overlay onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
@@ -247,8 +258,10 @@ export default function AssignRoleModal({ onClose, onAssign }) {
                 </Tag>
               ))}
               <TextInput
+                value={query}
+                placeholder={selected.length === 0 ? 'Search team members' : ''}
+                onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
                 onFocus={() => setOpen(true)}
-                readOnly
               />
               <Chevron $open={open}>
                 <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -259,7 +272,14 @@ export default function AssignRoleModal({ onClose, onAssign }) {
 
             {open && (
               <Menu>
-                {options.map(member => {
+                {filtered.length === 0 && (
+                  <MenuItem $disabled>
+                    <MemberInfo>
+                      <MemberSub $disabled>No results for "{query.trim()}"</MemberSub>
+                    </MemberInfo>
+                  </MenuItem>
+                )}
+                {filtered.map(member => {
                   const isSelected = selected.some(m => m.id === member.id)
                   return (
                     <MenuItem

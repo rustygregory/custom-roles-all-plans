@@ -2,12 +2,14 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import styled from 'styled-components'
 import { Button } from '@zendeskgarden/react-buttons'
-import { Notification } from '@zendeskgarden/react-notifications'
+import { Alert, Notification } from '@zendeskgarden/react-notifications'
 import Breadcrumbs from './Breadcrumbs'
 import AIAgentsSection from './AIAgentsSection'
+import ProductAccessSection from './ProductAccessSection'
+import SettingsCapsule from './SettingsCapsule'
 import AssignRoleModal from './AssignRoleModal'
 import { useAppContext } from '../context/AppContext'
-import { teamMembers } from '../data/mockData'
+import { teamMembers, AI_ACCESS_LABELS, PRODUCT_CAPSULES, RADIO_PRODUCTS, memberProductAccess } from '../data/mockData'
 
 const PageWrapper = styled.div`
   display: flex;
@@ -98,6 +100,76 @@ const MemberLink = styled.span`
   &:hover {
     text-decoration: underline;
   }
+`
+
+const AccessWarning = styled(Alert)`
+  position: relative;
+  margin-top: 8px;
+  padding: 8px 12px 8px 32px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  background-color: #f6eba6;
+  border-color: #f6eba6;
+
+  /* Garden ships the outlined warning glyph; swap it for the filled one. */
+  [data-garden-id="notifications.icon"] {
+    display: none;
+  }
+
+  [data-garden-id="notifications.title"] {
+    margin: 0;
+    color: #3b3405;
+  }
+
+  [data-garden-id="notifications.paragraph"] {
+    margin: 0;
+    color: #3b3405;
+  }
+`
+
+const DisabledProductNote = styled.div`
+  font-size: 14px;
+  color: #87929d;
+`
+
+/* V2: one warning per member — each changed product is a name line followed by
+   a bulleted "current to new" line, instead of one well per product. */
+const WarningChangeList = styled.div`
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #3b3405;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`
+
+const FilledWarningIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 16 16"
+    aria-hidden="true"
+    focusable="false"
+    style={{ position: 'absolute', left: 10, top: 10, color: '#7f7004' }}
+  >
+    <path
+      fillRule="evenodd"
+      fill="currentColor"
+      d="M8.9 1.9c-.4-.8-1.4-.8-1.8 0L.7 12.6c-.5.8.1 1.9 1 1.9h12.6c.9 0 1.5-1.1 1-1.9L8.9 1.9zM7.25 6h1.5v4.5h-1.5V6zM8 13.25a.95.95 0 1 1 0-1.9.95.95 0 0 1 0 1.9z"
+    />
+  </svg>
+)
+
+const AiAgentsWrap = styled.div``
+
+/* Container is a stretched flex item, so its bottom padding doesn't extend the
+   scroll area — this block spacer does. 28px + the capsule's own 12px margin
+   gives the 40px gap below the last capsule. */
+const BottomSpacer = styled.div`
+  height: 28px;
+  flex-shrink: 0;
 `
 
 const BottomBar = styled.div`
@@ -202,12 +274,28 @@ const FormSection = styled.div`
   margin-bottom: 28px;
 `
 
-const SectionHeader = styled.h2`
-  font-size: 16px;
-  font-weight: 600;
-  color: #2f3941;
-  margin: 0 0 16px;
-  padding-bottom: 8px;
+/* Matches the capsules' 630px so the button sits over their right edge rather
+   than the page's. */
+const OpenAllRow = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  max-width: 630px;
+  margin-bottom: 12px;
+`
+
+const OpenAllButton = styled.button.attrs({ type: 'button' })`
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 14px;
+  color: #1f73b7;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
 `
 
 const SubSectionHeader = styled.h3`
@@ -317,13 +405,6 @@ const RadioInput = styled.input.attrs({ type: 'radio' })`
   margin-top: 1px;
 `
 
-const Divider = styled.hr`
-  border: none;
-  border-top: 1px solid #e9ebed;
-  margin: 32px 0;
-`
-
-
 const LinkText = styled.span`
   color: #1f73b7;
   cursor: pointer;
@@ -334,18 +415,40 @@ const LinkText = styled.span`
   }
 `
 
+/* Order matches the roles page in the product. */
+const CAPSULE_KEYS = [
+  'tickets',
+  'custom-objects',
+  'people',
+  'channels',
+  'agent-workflow',
+  'business-rules',
+  'security',
+  'knowledge',
+  'reporting',
+  'ai-agents',
+]
+
+/* V2: the settings capsules stay (minus AI agents, which moves), with one
+   capsule per product appended in the Roles and access table's order. */
+const V2_CAPSULE_KEYS = [...CAPSULE_KEYS.filter(k => k !== 'ai-agents'), ...PRODUCT_CAPSULES.map(p => p.id)]
+
 export default function RoleDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
   const {
-    aiAgentsOptedIn,
-    setAiAgentsSaved,
+    version,
+    getAiAgentsState,
+    updateAiAgentsState,
     roles,
     addRole,
     setAiAgentsRoleId,
     roleAssignments,
     assignMembersToRole,
+    getProductAccess,
+    saveProductAccess,
+    copyProductAccess,
   } = useAppContext()
   const [showToast, setShowToast] = useState(false)
   const [toastMessage, setToastMessage] = useState('Role saved successfully')
@@ -361,14 +464,58 @@ export default function RoleDetail() {
   const [savedRoleId, setSavedRoleId] = useState(null)
   const currentRoleId = isCreate ? savedRoleId : id
 
+  // The draft role on the create page keeps its AI agents state under 'create'
+  // until it has an id; every role starts opted out.
+  const aiAgentsKey = currentRoleId || 'create'
+  const aiAgentsState = getAiAgentsState(aiAgentsKey)
+
+  /* Opt-in preview: while opted in but not yet saved, the side panel shows each
+     member's current access and warns about the level the role would move them
+     to. Turning opt-in off or saving both end the preview. */
+  const accessPreviewActive = aiAgentsState.optedIn && !aiAgentsState.saved && Boolean(aiAgentsState.accessLevel)
+  const newAccessLabel = AI_ACCESS_LABELS[aiAgentsState.accessLevel]
+  const accessWillChange = (member) =>
+    !(aiAgentsState.accessLevel === 'no_access' && member.aiAgentsAccess === 'No Access')
+
+  /* All pending access-change warnings for one member, in capsule order: the
+     V2 product opt-ins first (Support → Chat), then AI agents. A member is only
+     affected by a product change when their current level differs from the new
+     one — matching the AI agents no-access/no-change rule. */
+  const warningsFor = (member) => {
+    const list = []
+    if (version !== 'v1') {
+      for (const p of RADIO_PRODUCTS) {
+        const s = getProductAccess(aiAgentsKey, p.id)
+        if (s.optedIn && !s.saved && s.accessLevel) {
+          const current = memberProductAccess[member.id]?.[p.id]
+          const next = AI_ACCESS_LABELS[s.accessLevel]
+          if (current && current !== next) {
+            list.push({ key: p.id, product: p.name, title: `${p.name} access change`, body: `${current} to ${next}` })
+          }
+        }
+      }
+    }
+    if (accessPreviewActive && accessWillChange(member)) {
+      list.push({ key: 'ai-agents', product: 'AI agents', title: 'AI agents access change', body: `${member.aiAgentsAccess} to ${newAccessLabel}` })
+    }
+    return list
+  }
+
   const [nameValue, setNameValue] = useState(role?.name || '')
   const [descValue, setDescValue] = useState(role?.description || '')
 
   const aiAgentsRef = useRef(null)
 
+  /* Permissions live in capsules now. AI agents starts open — it's the section
+     this prototype exists to show, and the auto-scroll from a team member's
+     Roles and access table lands on it. Reset per role so navigating from one
+     role to another doesn't carry over a fully-expanded page. */
+  const [openCapsules, setOpenCapsules] = useState({ 'ai-agents': true })
+
   useEffect(() => {
     setNameValue(role?.name || '')
     setDescValue(role?.description || '')
+    setOpenCapsules({ 'ai-agents': true })
   }, [id, role?.name, role?.description])
 
   // Auto-scroll to the AI Agents section when arriving from the "Roles" link.
@@ -400,9 +547,6 @@ export default function RoleDetail() {
   const showActions = hasSaved
 
   const handleSave = () => {
-    if (aiAgentsOptedIn) {
-      setAiAgentsSaved(true)
-    }
     if (isCreate && nameValue.trim()) {
       const newId = nameValue.toLowerCase().replace(/\s+/g, '-')
       if (!roles.some(r => r.id === newId)) {
@@ -411,15 +555,23 @@ export default function RoleDetail() {
           name: nameValue.trim(),
           type: 'Custom',
           description: descValue.trim(),
-          teamMembers: 0,
         })
       }
       setSavedRoleId(newId)
-      if (aiAgentsOptedIn) {
+      if (aiAgentsState.optedIn) {
+        // The draft's opt-in moves onto the saved role and becomes permanent.
+        updateAiAgentsState(newId, { ...aiAgentsState, saved: true })
         setAiAgentsRoleId(newId)
       }
-    } else if (!isCreate && aiAgentsOptedIn) {
+      copyProductAccess('create', newId)
+      // The draft is spent — the next Create role starts opted out.
+      updateAiAgentsState('create', { optedIn: false, saved: false, accessLevel: null })
+    } else if (!isCreate && aiAgentsState.optedIn) {
+      updateAiAgentsState(id, { saved: true })
       setAiAgentsRoleId(id)
+    }
+    if (!isCreate) {
+      saveProductAccess(id)
     }
     setToastMessage(isCreate ? 'Role created' : 'Role saved successfully')
     setShowToast(true)
@@ -436,6 +588,23 @@ export default function RoleDetail() {
     setTimeout(() => setShowToast(false), 4000)
   }
 
+  const capsuleKeys = version === 'v1' ? CAPSULE_KEYS : V2_CAPSULE_KEYS
+  const allCapsulesOpen = capsuleKeys.every(key => openCapsules[key])
+  const toggleAllCapsules = () => {
+    setOpenCapsules(
+      allCapsulesOpen
+        ? {}
+        : Object.fromEntries(capsuleKeys.map(key => [key, true])),
+    )
+  }
+  const toggleCapsule = (key) => {
+    setOpenCapsules(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+  const capsuleProps = (key) => ({
+    open: Boolean(openCapsules[key]),
+    onToggle: () => toggleCapsule(key),
+  })
+
   return (
     <PageWrapper>
       {showToast && (
@@ -449,8 +618,8 @@ export default function RoleDetail() {
       <ScrollArea>
         <Container>
           <Breadcrumbs items={[
-            { label: 'People', path: '/roles' },
-            { label: 'Team', path: '/roles' },
+            { label: 'People' },
+            { label: 'Team' },
             { label: 'Roles', path: '/roles' },
             { label: hasSaved && isCreate ? 'Edit role' : (isCreate ? 'Create role' : roleName) },
           ]} />
@@ -494,12 +663,18 @@ export default function RoleDetail() {
       </FormSection>
 
 
-      {/* Permissions */}
-      <SectionHeader>Permissions</SectionHeader>
+      {/* Permissions, grouped into capsules. */}
+      <OpenAllRow>
+        <OpenAllButton onClick={toggleAllCapsules}>
+          {allCapsulesOpen ? 'Close all' : 'Open all'}
+        </OpenAllButton>
+      </OpenAllRow>
 
-      {/* Tickets */}
-      <FormSection>
-        <SubSectionHeader>Tickets</SubSectionHeader>
+      <SettingsCapsule
+        title="Tickets"
+        description="Choose the ticket permissions for this role."
+        {...capsuleProps('tickets')}
+      >
         <Label style={{ marginBottom: '12px' }}>Tickets they can access</Label>
         <RadioGroup>
           <RadioLabel><RadioInput name="ticket-access" defaultChecked /> Requested by and users in their organizations</RadioLabel>
@@ -537,20 +712,23 @@ export default function RoleDetail() {
         <CheckboxGroup>
           <CheckboxLabel><CheckboxInput /> Can customize Ticket Fields admin page and create, edit, update, and delete ticket fields</CheckboxLabel>
         </CheckboxGroup>
-      </FormSection>
+      </SettingsCapsule>
 
 
-      {/* Custom objects */}
-      <FormSection>
-        <SubSectionHeader>Custom objects</SubSectionHeader>
+      <SettingsCapsule
+        title="Custom objects"
+        description="No objects yet."
+        {...capsuleProps('custom-objects')}
+      >
         <LinkText>Can view and edit objects</LinkText>
-      </FormSection>
+      </SettingsCapsule>
 
 
-      {/* People */}
-      <FormSection>
-        <SubSectionHeader>People</SubSectionHeader>
-
+      <SettingsCapsule
+        title="People"
+        description="Choose the people permissions for this role."
+        {...capsuleProps('people')}
+      >
         <Label style={{ marginBottom: '12px' }}>Manage and users</Label>
         <CheckboxGroup>
           <CheckboxLabel><CheckboxInput defaultChecked /> View only</CheckboxLabel>
@@ -596,12 +774,14 @@ export default function RoleDetail() {
         <CheckboxGroup>
           <CheckboxLabel><CheckboxInput /> Can access the User Fields admin page and create, edit, update, and delete user fields</CheckboxLabel>
         </CheckboxGroup>
-      </FormSection>
+      </SettingsCapsule>
 
 
-      {/* Channels */}
-      <FormSection>
-        <SubSectionHeader>Channels</SubSectionHeader>
+      <SettingsCapsule
+        title="Channels"
+        description="Choose the channel permissions for this role."
+        {...capsuleProps('channels')}
+      >
         <Label style={{ marginBottom: '8px' }}>Manage channels and extensions</Label>
         <CheckboxGroup>
           <CheckboxLabel><CheckboxInput /> Channels include email, social messaging apps, and other means of communication. Extensions include triggers, automations, and integrations.</CheckboxLabel>
@@ -611,13 +791,14 @@ export default function RoleDetail() {
         <CheckboxGroup>
           <CheckboxLabel><CheckboxInput /> Can set Facebook pages to create tickets from Facebook wall posts</CheckboxLabel>
         </CheckboxGroup>
-      </FormSection>
+      </SettingsCapsule>
 
 
-      {/* Agent workflow */}
-      <FormSection>
-        <SubSectionHeader>Agent workflow</SubSectionHeader>
-
+      <SettingsCapsule
+        title="Agent workflow"
+        description="Choose the agent workflow permissions for this role."
+        {...capsuleProps('agent-workflow')}
+      >
         <Label style={{ marginBottom: '12px' }}>Manage permissions</Label>
         <RadioGroup>
           <RadioLabel><RadioInput name="views" defaultChecked /> My views only</RadioLabel>
@@ -654,13 +835,14 @@ export default function RoleDetail() {
         <CheckboxGroup>
           <CheckboxLabel><CheckboxInput /> Can view, edit, and edit contextual workspaces</CheckboxLabel>
         </CheckboxGroup>
-      </FormSection>
+      </SettingsCapsule>
 
 
-      {/* Business rules */}
-      <FormSection>
-        <SubSectionHeader>Business rules</SubSectionHeader>
-
+      <SettingsCapsule
+        title="Business rules"
+        description="Choose the business rules permissions for this role."
+        {...capsuleProps('business-rules')}
+      >
         <Label style={{ marginBottom: '8px' }}>Automations</Label>
         <CheckboxGroup>
           <CheckboxLabel><CheckboxInput /> Can view, add, edit, and delete automations</CheckboxLabel>
@@ -685,47 +867,14 @@ export default function RoleDetail() {
         <CheckboxGroup>
           <CheckboxLabel><CheckboxInput /> Can view, edit, add, and delete business rule analysis</CheckboxLabel>
         </CheckboxGroup>
-      </FormSection>
+      </SettingsCapsule>
 
 
-      {/* Knowledge */}
-      <FormSection>
-        <SubSectionHeader>Knowledge</SubSectionHeader>
-        <CheckboxGroup>
-          <CheckboxLabel><CheckboxInput defaultChecked /> Manage Guide</CheckboxLabel>
-          <HintText style={{ marginLeft: '24px', display: 'block' }}>Can by default have an admin and can manage articles, themes, and settings.</HintText>
-        </CheckboxGroup>
-      </FormSection>
-
-
-      {/* Reporting and Analytics */}
-      <FormSection>
-        <SubSectionHeader>Reporting and Analytics</SubSectionHeader>
-
-        <Label style={{ marginBottom: '12px' }}>Explore permissions</Label>
-        <RadioGroup>
-          <RadioLabel><RadioInput name="explore" /> No access</RadioLabel>
-          <RadioLabel><RadioInput name="explore" defaultChecked /> View reports</RadioLabel>
-          <RadioLabel><RadioInput name="explore" /> Create reports</RadioLabel>
-          <RadioLabel><RadioInput name="explore" /> Create reports and manage permissions</RadioLabel>
-        </RadioGroup>
-
-        <SubSectionHeader>Reports permissions</SubSectionHeader>
-        <CheckboxGroup>
-          <CheckboxLabel><CheckboxInput /> Refer to the Reports tab in Support, not reports within Explore. These who can also export data.</CheckboxLabel>
-        </CheckboxGroup>
-
-        <SubSectionHeader>View Talk dashboard</SubSectionHeader>
-        <CheckboxGroup>
-          <CheckboxLabel><CheckboxInput defaultChecked /> Can track phone calls on the Talk dashboard</CheckboxLabel>
-        </CheckboxGroup>
-      </FormSection>
-
-
-      {/* Security and privacy */}
-      <FormSection>
-        <SubSectionHeader>Security and privacy</SubSectionHeader>
-
+      <SettingsCapsule
+        title="Security and privacy"
+        description="Choose the security and privacy permissions for this role."
+        {...capsuleProps('security')}
+      >
         <Label style={{ marginBottom: '8px' }}>Manage access and security permissions for this role.</Label>
 
         <SubSectionHeader>Manage deletion schedules</SubSectionHeader>
@@ -753,12 +902,87 @@ export default function RoleDetail() {
             </tbody>
           </table>
         </div>
-      </FormSection>
+      </SettingsCapsule>
 
-      {/* AI Agents — NEW */}
-      <div ref={aiAgentsRef}>
-        <AIAgentsSection />
-      </div>
+
+      <SettingsCapsule
+        title="Knowledge"
+        description="Choose whether or not this role includes managing Knowledge."
+        {...capsuleProps('knowledge')}
+      >
+        <CheckboxGroup>
+          <CheckboxLabel><CheckboxInput defaultChecked /> Manage Guide</CheckboxLabel>
+          <HintText style={{ marginLeft: '24px', display: 'block' }}>Can by default have an admin and can manage articles, themes, and settings.</HintText>
+        </CheckboxGroup>
+      </SettingsCapsule>
+
+
+      <SettingsCapsule
+        title="Reporting and analytics"
+        description="Choose the reporting and analytics permissions for this role."
+        {...capsuleProps('reporting')}
+      >
+        <Label style={{ marginBottom: '12px' }}>Explore permissions</Label>
+        <RadioGroup>
+          <RadioLabel><RadioInput name="explore" /> No access</RadioLabel>
+          <RadioLabel><RadioInput name="explore" defaultChecked /> View reports</RadioLabel>
+          <RadioLabel><RadioInput name="explore" /> Create reports</RadioLabel>
+          <RadioLabel><RadioInput name="explore" /> Create reports and manage permissions</RadioLabel>
+        </RadioGroup>
+
+        <SubSectionHeader>Reports permissions</SubSectionHeader>
+        <CheckboxGroup>
+          <CheckboxLabel><CheckboxInput /> Refer to the Reports tab in Support, not reports within Explore. These who can also export data.</CheckboxLabel>
+        </CheckboxGroup>
+
+        <SubSectionHeader>View Talk dashboard</SubSectionHeader>
+        <CheckboxGroup>
+          <CheckboxLabel><CheckboxInput defaultChecked /> Can track phone calls on the Talk dashboard</CheckboxLabel>
+        </CheckboxGroup>
+      </SettingsCapsule>
+
+
+      {/* The ref is what the "Roles" link in a team member's Roles and access
+          table scrolls to. In V1 this capsule sits last; in V2 it moves into
+          the product block below. */}
+      {version === 'v1' && (
+        <AiAgentsWrap ref={aiAgentsRef}>
+          <SettingsCapsule
+            title="AI agents"
+            description="Choose whether this role can access AI agents."
+            {...capsuleProps('ai-agents')}
+          >
+            <AIAgentsSection roleId={aiAgentsKey} />
+          </SettingsCapsule>
+        </AiAgentsWrap>
+      )}
+
+      {/* V2 (Scaled access change): after all the settings capsules, one capsule
+          per product in the Roles and access table's order — Support, Knowledge,
+          Analytics, Voice, Chat, AI agents, Quality assurance. */}
+      {version !== 'v1' && PRODUCT_CAPSULES.map(p => p.id === 'ai-agents' ? (
+        <AiAgentsWrap ref={aiAgentsRef} key={p.id}>
+          <SettingsCapsule
+            title="AI agents"
+            description="Choose whether this role can access AI agents."
+            {...capsuleProps('ai-agents')}
+          >
+            <AIAgentsSection roleId={aiAgentsKey} />
+          </SettingsCapsule>
+        </AiAgentsWrap>
+      ) : (
+        <SettingsCapsule
+          key={p.id}
+          title={p.name}
+          description={`Choose whether this role can access ${p.name}.`}
+          {...capsuleProps(p.id)}
+        >
+          {p.disabled
+            ? <DisabledProductNote>Subscription limit reached</DisabledProductNote>
+            : <ProductAccessSection roleId={aiAgentsKey} product={p} />}
+        </SettingsCapsule>
+      ))}
+      <BottomSpacer />
         </Container>
 
         {hasSaved && (
@@ -780,7 +1004,9 @@ export default function RoleDetail() {
                 </SidePanelHint>
                 <MemberTable>
                   <MemberTableHead>Name</MemberTableHead>
-                  {assignedMembers.map(m => (
+                  {assignedMembers.map(m => {
+                    const changes = warningsFor(m)
+                    return (
                     <MemberRow key={m.id}>
                       <MemberLink
                         onClick={() => navigate(`/team-members/${m.id}`, {
@@ -789,8 +1015,33 @@ export default function RoleDetail() {
                       >
                         {m.name}
                       </MemberLink>
+                      {version !== 'v1' ? (
+                        changes.length > 0 && (
+                          <AccessWarning type="warning" role="note">
+                            <FilledWarningIcon />
+                            <Alert.Title>{changes.length > 1 ? 'Access changes' : 'Access change'}</Alert.Title>
+                            <WarningChangeList>
+                              {changes.map(c => (
+                                <div key={c.key}>
+                                  <div>{c.product}</div>
+                                  <div>&bull; {c.body}</div>
+                                </div>
+                              ))}
+                            </WarningChangeList>
+                          </AccessWarning>
+                        )
+                      ) : (
+                        changes.map(w => (
+                          <AccessWarning key={w.key} type="warning" role="note">
+                            <FilledWarningIcon />
+                            <Alert.Title>{w.title}</Alert.Title>
+                            <Alert.Paragraph>{w.body}</Alert.Paragraph>
+                          </AccessWarning>
+                        ))
+                      )}
                     </MemberRow>
-                  ))}
+                    )
+                  })}
                 </MemberTable>
               </>
             )}

@@ -1,7 +1,7 @@
 import styled from 'styled-components'
 import { useNavigate } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext'
-import { rolesAndAccessData } from '../data/mockData'
+import { rolesAndAccessData, AI_ACCESS_LABELS } from '../data/mockData'
 
 const TableWrapper = styled.div`
   max-width: 640px;
@@ -110,13 +110,16 @@ const RolesLink = styled.span`
 `
 
 export default function RolesAndAccessTab({ memberId }) {
-  const { isMemberAiAgentsMigrated, aiAgentsRoleId, roles, getMemberAssignedRole } = useAppContext()
+  const { isMemberAiAgentsMigrated, aiAgentsRoleId, roles, getMemberAssignedRole, getAiAgentsState } = useAppContext()
   const navigate = useNavigate()
 
   // AI agents is only migrated for members assigned to the migrated role.
   const migrated = memberId ? isMemberAiAgentsMigrated(memberId) : false
   const migratedRole = roles.find(r => r.id === aiAgentsRoleId)
   const migratedRoleName = migratedRole?.name || 'Roles'
+  const migratedAccessLabel = migrated
+    ? AI_ACCESS_LABELS[getAiAgentsState(aiAgentsRoleId).accessLevel]
+    : null
 
   // The role this member is assigned to (drives the Support product's role dropdown).
   const assignedRole = memberId ? getMemberAssignedRole(memberId) : null
@@ -136,7 +139,9 @@ export default function RolesAndAccessTab({ memberId }) {
       return null
     }
     if (item.access === 'ai_agents') {
-      // Keep the access checkbox visible even after migration for now.
+      // Once the role has migrated the product's settings, the Access checkbox
+      // goes with them — the row carries the role's access level instead.
+      if (migrated) return migratedAccessLabel ? <span>{migratedAccessLabel}</span> : null
       return <Checkbox defaultChecked={item.checked} />
     }
     return null
@@ -149,8 +154,9 @@ export default function RolesAndAccessTab({ memberId }) {
     if (item.access === 'ai_agents' && migrated) {
       return (
         <MigratedMessage>
-          Settings for this product can be found in roles.{' '}
-          <RolesLink onClick={goToMigratedRole}>{migratedRoleName}</RolesLink>
+          Settings for {item.product} can be found in roles.
+          <br />
+          <RolesLink onClick={goToMigratedRole}>View {migratedRoleName} role</RolesLink>
         </MigratedMessage>
       )
     }

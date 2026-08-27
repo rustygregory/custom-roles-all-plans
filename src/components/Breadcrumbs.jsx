@@ -11,20 +11,21 @@ const BreadcrumbContainer = styled.nav`
 
 const BreadcrumbLink = styled.span`
   color: #1f73b7;
+  text-decoration: underline;
   cursor: pointer;
 
   &:hover {
-    text-decoration: underline;
+    color: #144a75;
   }
 `
 
 const Separator = styled.span`
-  color: #87929d;
+  color: #68737d;
   margin: 0 2px;
 `
 
-const Current = styled.span`
-  color: #2f3941;
+const Subtle = styled.span`
+  color: #68737d;
 `
 
 export default function Breadcrumbs({ items }) {
@@ -33,16 +34,16 @@ export default function Breadcrumbs({ items }) {
   return (
     <BreadcrumbContainer>
       {items.map((item, i) => {
-        const isLast = i === items.length - 1
+        const isLink = Boolean(item.path)
         return (
           <span key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             {i > 0 && <Separator>{'>'}</Separator>}
-            {isLast ? (
-              <Current>{item.label}</Current>
-            ) : (
-              <BreadcrumbLink onClick={() => item.path && navigate(item.path)}>
+            {isLink ? (
+              <BreadcrumbLink onClick={() => navigate(item.path)}>
                 {item.label}
               </BreadcrumbLink>
+            ) : (
+              <Subtle>{item.label}</Subtle>
             )}
           </span>
         )

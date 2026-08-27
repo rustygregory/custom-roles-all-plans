@@ -4,3 +4,10 @@
   width: 100%;
   height: 100vh;
 }
+
+/* The globalnav template hardcodes a red "1" notification badge on the TopBar's
+   bell button, with no prop to turn it off. sc-iwjgNJ is that badge's styled-
+   components class from the template build. */
+header .sc-iwjgNJ {
+  display: none;
+}

@@ -1,14 +1,51 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
+import { Button } from '@zendeskgarden/react-buttons'
+import { Notification } from '@zendeskgarden/react-notifications'
 import Breadcrumbs from './Breadcrumbs'
 import RolesAndAccessTab from './RolesAndAccessTab'
 import { teamMembers } from '../data/mockData'
 
+const PageWrapper = styled.div`
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  flex-direction: column;
+`
+
+const ScrollArea = styled.div`
+  display: flex;
+  flex: 1;
+  overflow-y: auto;
+`
+
 const Container = styled.div`
   padding: 24px 32px;
-  overflow-y: auto;
   flex: 1;
+`
+
+const BottomBar = styled.div`
+  height: 80px;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 0 32px;
+  border-top: 1px solid #e9ebed;
+  background: #fff;
+`
+
+const ToastWrapper = styled.div`
+  position: fixed;
+  top: 72px;
+  right: 40px;
+  z-index: 1000;
+
+  [data-garden-id="notifications.notification"] {
+    min-width: 410px;
+  }
 `
 
 const Header = styled.div`
@@ -90,14 +127,31 @@ const AccountPlaceholder = styled.div`
 
 export default function TeamMemberDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('roles')
+  const [showToast, setShowToast] = useState(false)
   const member = teamMembers.find(m => m.id === id) || teamMembers[0]
 
+  const handleSave = () => {
+    setShowToast(true)
+    setTimeout(() => setShowToast(false), 4000)
+  }
+
   return (
-    <Container>
+    <PageWrapper>
+      {showToast && (
+        <ToastWrapper>
+          <Notification type="success">
+            <Notification.Title>Team member saved</Notification.Title>
+            <Notification.Close aria-label="Close" onClick={() => setShowToast(false)} />
+          </Notification>
+        </ToastWrapper>
+      )}
+      <ScrollArea>
+        <Container>
       <Breadcrumbs items={[
-        { label: 'People', path: '/team-members' },
-        { label: 'Team', path: '/team-members' },
+        { label: 'People' },
+        { label: 'Team' },
         { label: 'Team members', path: '/team-members' },
         { label: member.name },
       ]} />
@@ -133,15 +187,13 @@ export default function TeamMemberDetail() {
           <RolesAndAccessTab memberId={member.id} />
         </TabPanel>
       )}
+        </Container>
+      </ScrollArea>
 
-      <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
-        <button style={{ padding: '8px 16px', border: '1px solid #d8dcde', borderRadius: '4px', background: '#fff', cursor: 'pointer', fontSize: '14px' }}>
-          Cancel
-        </button>
-        <button style={{ padding: '8px 16px', border: 'none', borderRadius: '4px', background: '#1f73b7', color: '#fff', cursor: 'pointer', fontSize: '14px', fontWeight: '500' }}>
-          Save
-        </button>
-      </div>
-    </Container>
+      <BottomBar>
+        <Button onClick={() => navigate('/team-members')}>Cancel</Button>
+        <Button isPrimary onClick={handleSave}>Save</Button>
+      </BottomBar>
+    </PageWrapper>
   )
 }

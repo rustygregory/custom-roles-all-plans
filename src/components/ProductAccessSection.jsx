@@ -3,8 +3,9 @@ import styled from 'styled-components'
 import { Alert } from '@zendeskgarden/react-notifications'
 import { useAppContext } from '../context/AppContext'
 
-/* Renders as the body of the AI agents capsule — the capsule header carries the
-   title and description, so this component is only the content. */
+/* V2 (Scaled access change): the AI agents opt-in pattern applied to the other
+   products — opt-in checkbox, info alert, then the access-level radios. Radio
+   copy is placeholder until the real per-product text lands. */
 const Section = styled.div`
   padding-bottom: 8px;
 `
@@ -92,15 +93,21 @@ const RadioHint = styled.span`
   margin-top: 2px;
 `
 
-export default function AIAgentsSection({ roleId }) {
+const PLACEHOLDER_OPTIONS = [
+  { value: 'no_access', label: 'No access', description: 'Placeholder text' },
+  { value: 'client_admin', label: 'Client admin', description: 'Placeholder text' },
+  { value: 'client_editor', label: 'Client editor', description: 'Placeholder text' },
+  { value: 'client_user', label: 'Client user', description: 'Placeholder text' },
+]
+
+export default function ProductAccessSection({ roleId, product }) {
   const radioRef = useRef(null)
-  const { getAiAgentsState, updateAiAgentsState } = useAppContext()
-  const { optedIn, saved, accessLevel } = getAiAgentsState(roleId)
+  const { getProductAccess, updateProductAccess } = useAppContext()
+  const { optedIn, saved, accessLevel } = getProductAccess(roleId, product.id)
 
   const handleOptIn = (e) => {
-    updateAiAgentsState(roleId, {
+    updateProductAccess(roleId, product.id, {
       optedIn: e.target.checked,
-      // Default to No Access on first opt-in.
       ...(e.target.checked && !accessLevel ? { accessLevel: 'no_access' } : {}),
     })
     if (e.target.checked) {
@@ -110,29 +117,6 @@ export default function AIAgentsSection({ roleId }) {
     }
   }
 
-  const options = [
-    {
-      value: 'no_access',
-      label: 'No access',
-      description: 'Users with this custom role can’t view or access AI agents. Selecting this option doesn’t hide AI agents from the product icons menu, but users can’t access the AI agents dashboard.',
-    },
-    {
-      value: 'client_admin',
-      label: 'Client admin',
-      description: 'Users can manage all AI agent capabilities, including creating, editing, publishing, and deleting agents, configuring settings, and managing API integrations.',
-    },
-    {
-      value: 'client_editor',
-      label: 'Client editor',
-      description: 'Users can create and edit AI agents, but can’t publish or delete agents, configure settings, or manage API integrations.',
-    },
-    {
-      value: 'client_user',
-      label: 'Client user',
-      description: 'Users can manage AI agents with restrictions on sensitive capabilities, such as agents cannot access API integration.',
-    },
-  ]
-
   return (
     <Section>
       {!saved && (
@@ -141,28 +125,28 @@ export default function AIAgentsSection({ roleId }) {
             checked={optedIn}
             onChange={handleOptIn}
           />
-          Opt in for AI agents
+          Opt in for {product.name}
         </CheckboxRow>
       )}
 
       {!saved && (
         <StyledAlert type="info" role="note">
-          <Alert.Title>Opting in to AI agents moves settings to this page</Alert.Title>
+          <Alert.Title>Opting in to {product.name} moves settings to this page</Alert.Title>
           <Alert.Paragraph>
-            AI agent settings will only be available here in the roles and permissions pages.
+            {product.name} settings will only be available here in the roles and permissions pages.
           </Alert.Paragraph>
         </StyledAlert>
       )}
 
       {(optedIn || saved) && (
         <RadioGroup ref={radioRef}>
-          {options.map(option => (
+          {PLACEHOLDER_OPTIONS.map(option => (
             <RadioLabel key={option.value}>
               <RadioInput
-                name={`ai-agents-access-${roleId}`}
+                name={`${product.id}-access-${roleId}`}
                 value={option.value}
                 checked={accessLevel === option.value}
-                onChange={() => updateAiAgentsState(roleId, { accessLevel: option.value })}
+                onChange={() => updateProductAccess(roleId, product.id, { accessLevel: option.value })}
               />
               <RadioTextWrap>
                 <RadioTitle>{option.label}</RadioTitle>

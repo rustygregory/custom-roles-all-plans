@@ -1,6 +1,7 @@
 import styled from 'styled-components'
 import { useNavigate } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext'
+import Breadcrumbs from './Breadcrumbs'
 
 const Container = styled.div`
   padding: 24px 32px;
@@ -137,14 +138,17 @@ export default function RolesList() {
   const navigate = useNavigate()
   const { roles, roleAssignments } = useAppContext()
 
-  const memberCount = (role) => {
-    const base = role.teamMembers || 0
-    const assigned = (roleAssignments[role.id] || []).length
-    return base + assigned
-  }
+  /* The count is the assignment list, nothing else — seeded roles start with
+     their rosters, created roles start empty and grow as members are assigned. */
+  const memberCount = (role) => (roleAssignments[role.id] || []).length
 
   return (
     <Container>
+      <Breadcrumbs items={[
+        { label: 'People' },
+        { label: 'Team' },
+        { label: 'Roles' },
+      ]} />
       <PageHeader>
         <div>
           <Title>Roles</Title>
