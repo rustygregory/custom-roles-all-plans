@@ -5,7 +5,7 @@ import { useAppContext } from '../context/AppContext'
 
 /* V2 (Scaled access change): the AI agents opt-in pattern applied to the other
    products — opt-in checkbox, info alert, then the access-level radios. Radio
-   copy is placeholder until the real per-product text lands. */
+   copy mirrors the AI agents text with the product name swapped in. */
 const Section = styled.div`
   padding-bottom: 8px;
 `
@@ -93,17 +93,34 @@ const RadioHint = styled.span`
   margin-top: 2px;
 `
 
-const PLACEHOLDER_OPTIONS = [
-  { value: 'no_access', label: 'No access', description: 'Placeholder text' },
-  { value: 'client_admin', label: 'Client admin', description: 'Placeholder text' },
-  { value: 'client_editor', label: 'Client editor', description: 'Placeholder text' },
-  { value: 'client_user', label: 'Client user', description: 'Placeholder text' },
+const optionsFor = (name) => [
+  {
+    value: 'no_access',
+    label: 'No access',
+    description: `Users with this custom role can’t view or access ${name}. Selecting this option doesn’t hide ${name} from the product icons menu, but users can’t access the ${name} dashboard.`,
+  },
+  {
+    value: 'client_admin',
+    label: 'Client admin',
+    description: `Users can manage all ${name} capabilities, including creating, editing, publishing, and deleting, configuring settings, and managing API integrations.`,
+  },
+  {
+    value: 'client_editor',
+    label: 'Client editor',
+    description: `Users can create and edit ${name}, but can’t publish or delete, configure settings, or manage API integrations.`,
+  },
+  {
+    value: 'client_user',
+    label: 'Client user',
+    description: `Users can manage ${name} with restrictions on sensitive capabilities, such as no access to API integrations.`,
+  },
 ]
 
 export default function ProductAccessSection({ roleId, product }) {
   const radioRef = useRef(null)
   const { getProductAccess, updateProductAccess } = useAppContext()
   const { optedIn, saved, accessLevel } = getProductAccess(roleId, product.id)
+  const options = optionsFor(product.name)
 
   const handleOptIn = (e) => {
     updateProductAccess(roleId, product.id, {
@@ -140,7 +157,7 @@ export default function ProductAccessSection({ roleId, product }) {
 
       {(optedIn || saved) && (
         <RadioGroup ref={radioRef}>
-          {PLACEHOLDER_OPTIONS.map(option => (
+          {options.map(option => (
             <RadioLabel key={option.value}>
               <RadioInput
                 name={`${product.id}-access-${roleId}`}

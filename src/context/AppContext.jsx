@@ -5,8 +5,8 @@ const AppContext = createContext()
 
 export function AppProvider({ children }) {
   // Prototype-bar version: 'v1' is the AI-agents-only flow, 'v2' scales the
-  // access-change preview to every product capsule.
-  const [version, setVersion] = useState('v1')
+  // access-change preview to every product capsule. V2 is the default.
+  const [version, setVersion] = useState('v2')
 
   /* AI agents opt-in is per role: roleId -> { optedIn, saved, accessLevel }.
      Every role starts opted out — opting in on one role must not change what
