@@ -84,7 +84,7 @@ function Prototype() {
     <Shell>
       {/* Our chrome, above the product's. */}
       <PrototypeBar
-        title="Custom roles for all plans"
+        title="Custom roles on all plans"
         meta="Aug 2026"
         versions={VERSIONS}
         versionId={version}
