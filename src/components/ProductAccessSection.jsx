@@ -1,11 +1,13 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import styled from 'styled-components'
 import { Alert } from '@zendeskgarden/react-notifications'
 import { useAppContext } from '../context/AppContext'
+import { highlightText } from '../utils/highlight'
 
 /* V2 (Scaled access change): the AI agents opt-in pattern applied to the other
    products — opt-in checkbox, info alert, then the access-level radios. Radio
-   copy mirrors the AI agents text with the product name swapped in. */
+   copy mirrors the AI agents text with the product name swapped in.
+   V3+: `directAccess` skips opt-in and shows radios immediately. */
 const Section = styled.div`
   padding-bottom: 8px;
 `
@@ -93,6 +95,26 @@ const RadioHint = styled.span`
   margin-top: 2px;
 `
 
+const ManageBlock = styled.div`
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e9ebed;
+`
+
+const ManageTitle = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #2f3941;
+  margin-bottom: 8px;
+`
+
+const ManageHint = styled.span`
+  font-size: 12px;
+  color: #68737d;
+  display: block;
+  margin: 4px 0 0 24px;
+`
+
 const optionsFor = (name) => [
   {
     value: 'no_access',
@@ -116,11 +138,45 @@ const optionsFor = (name) => [
   },
 ]
 
-export default function ProductAccessSection({ roleId, product }) {
+export const productAccessSearchText = (name, { directAccess = false, includeManage = false } = {}) =>
+  [
+    ...(directAccess
+      ? []
+      : [
+          `Opt in for ${name}`,
+          `Opting in to ${name} moves settings to this page`,
+          `${name} settings will only be available here in the roles and permissions pages.`,
+        ]),
+    ...optionsFor(name).flatMap((o) => [o.label, o.description]),
+    ...(includeManage
+      ? ['Manage Guide', 'manage articles', 'themes', 'settings', 'knowledge']
+      : []),
+  ].join(' ')
+
+export default function ProductAccessSection({
+  roleId,
+  product,
+  query,
+  directAccess = false,
+  includeManageKnowledge = false,
+}) {
   const radioRef = useRef(null)
   const { getProductAccess, updateProductAccess } = useAppContext()
   const { optedIn, saved, accessLevel } = getProductAccess(roleId, product.id)
   const options = optionsFor(product.name)
+  const showRadios = directAccess || optedIn || saved
+
+  useEffect(() => {
+    if (!directAccess) return
+    if (!accessLevel) {
+      updateProductAccess(roleId, product.id, {
+        optedIn: true,
+        accessLevel: 'no_access',
+      })
+    } else if (!optedIn) {
+      updateProductAccess(roleId, product.id, { optedIn: true })
+    }
+  }, [directAccess, accessLevel, optedIn, roleId, product.id, updateProductAccess])
 
   const handleOptIn = (e) => {
     updateProductAccess(roleId, product.id, {
@@ -136,42 +192,58 @@ export default function ProductAccessSection({ roleId, product }) {
 
   return (
     <Section>
-      {!saved && (
+      {!directAccess && !saved && (
         <CheckboxRow>
           <CheckboxInput
             checked={optedIn}
             onChange={handleOptIn}
           />
-          Opt in for {product.name}
+          {highlightText(`Opt in for ${product.name}`, query)}
         </CheckboxRow>
       )}
 
-      {!saved && (
+      {!directAccess && !saved && (
         <StyledAlert type="info" role="note">
-          <Alert.Title>Opting in to {product.name} moves settings to this page</Alert.Title>
+          <Alert.Title>{highlightText(`Opting in to ${product.name} moves settings to this page`, query)}</Alert.Title>
           <Alert.Paragraph>
-            {product.name} settings will only be available here in the roles and permissions pages.
+            {highlightText(`${product.name} settings will only be available here in the roles and permissions pages.`, query)}
           </Alert.Paragraph>
         </StyledAlert>
       )}
 
-      {(optedIn || saved) && (
-        <RadioGroup ref={radioRef}>
-          {options.map(option => (
+      {showRadios && (
+        <RadioGroup ref={radioRef} style={directAccess ? { marginTop: 0 } : undefined}>
+          {options.map((option) => (
             <RadioLabel key={option.value}>
               <RadioInput
                 name={`${product.id}-access-${roleId}`}
                 value={option.value}
                 checked={accessLevel === option.value}
-                onChange={() => updateProductAccess(roleId, product.id, { accessLevel: option.value })}
+                onChange={() => updateProductAccess(roleId, product.id, {
+                  optedIn: true,
+                  accessLevel: option.value,
+                })}
               />
               <RadioTextWrap>
-                <RadioTitle>{option.label}</RadioTitle>
-                <RadioHint>{option.description}</RadioHint>
+                <RadioTitle>{highlightText(option.label, query)}</RadioTitle>
+                <RadioHint>{highlightText(option.description, query)}</RadioHint>
               </RadioTextWrap>
             </RadioLabel>
           ))}
         </RadioGroup>
+      )}
+
+      {includeManageKnowledge && (
+        <ManageBlock>
+          <ManageTitle>{highlightText('Manage Knowledge', query)}</ManageTitle>
+          <CheckboxRow style={{ marginBottom: 0 }}>
+            <CheckboxInput defaultChecked />
+            {highlightText('Manage Guide', query)}
+          </CheckboxRow>
+          <ManageHint>
+            {highlightText('Can by default have an admin and can manage articles, themes, and settings.', query)}
+          </ManageHint>
+        </ManageBlock>
       )}
     </Section>
   )

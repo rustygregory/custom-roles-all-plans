@@ -65,9 +65,13 @@ export const PRODUCT_CAPSULES = [
   { id: 'qa', name: 'Quality assurance', disabled: true },
 ]
 
+/* V3+: Chat / Sell / Gather are sunset — drop Chat from the product list. */
+export const PRODUCT_CAPSULES_V3 = PRODUCT_CAPSULES.filter((p) => p.id !== 'chat')
+
 /* The products that get their own opt-in capsule (not AI agents, which already
    has one, and not the disabled QA capsule). */
 export const RADIO_PRODUCTS = PRODUCT_CAPSULES.filter(p => !p.disabled && p.id !== 'ai-agents')
+export const RADIO_PRODUCTS_V3 = PRODUCT_CAPSULES_V3.filter(p => !p.disabled && p.id !== 'ai-agents')
 
 /* The access level each member has today, from the original three-option model.
    Mixed across the roster so the role-level preview has changes to show. */

@@ -9,6 +9,7 @@ import { toggle } from './forms/toggle';
 
 // Modals
 import { modal, modalFooterItem } from './modals/modal';
+import { drawerModal, drawerModalClose } from './modals/drawerModal';
 import { tooltipDialog, tooltipDialogBody, tooltipDialogFooter } from './modals/tooltipDialog';
 
 // Menus
@@ -33,6 +34,8 @@ export const forms = {
 export const modals = {
   'modals.modal': modal,
   'modals.footer_item': modalFooterItem,
+  'modals.drawer': drawerModal,
+  'modals.drawer.close': drawerModalClose,
   'modals.tooltip_dialog': tooltipDialog,
   'modals.tooltip_dialog.body': tooltipDialogBody,
   'modals.tooltip_dialog.footer': tooltipDialogFooter,

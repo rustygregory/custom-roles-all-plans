@@ -5,6 +5,7 @@ import styled from 'styled-components'
 import { ThemeProvider } from './flora-theme/elements/ThemeProvider'
 import { AppProvider, useAppContext } from './context/AppContext'
 import PrototypeBar from './prototype-bar/PrototypeBar'
+import { versionNotes } from './data/versionNotes'
 import CommentLayer from './comments/CommentLayer'
 import AdminCenterNav from './components/AdminCenterNav'
 import TeamMembersList from './components/TeamMembersList'
@@ -59,6 +60,8 @@ const WorkArea = styled.div`
 const VERSIONS = [
   { id: 'v1', label: 'V1' },
   { id: 'v2', label: 'V2 Scaled access change' },
+  { id: 'v3', label: 'V3 Panel redesign' },
+  { id: 'v3.5', label: 'V3.5 Deep filters' },
 ]
 
 function Prototype() {
@@ -86,6 +89,7 @@ function Prototype() {
         versions={VERSIONS}
         versionId={version}
         onVersionChange={setVersion}
+        versionNotes={versionNotes}
         commentSlotRef={setCommentSlot}
       />
       <PageContainer>
@@ -109,12 +113,16 @@ function Prototype() {
         </ContentRow>
       </PageContainer>
 
-      {/* The route is the whole comment context: the same position is a
-          different screen on /roles than on a role's detail page. */}
+      {/* Version + route are the whole comment context: the same position is a
+          different screen on V1 than on V2, and on /roles than on a role's detail
+          page. Both have to come back out in onRestoreContext — a value that goes
+          into `context` without a setter here means comments made in that state
+          can never be jumped to from the sidebar. */}
       <CommentLayer
         toggleContainer={commentSlot}
         context={{ version, route: location.pathname }}
         onRestoreContext={(saved) => {
+          if (VERSIONS.some((v) => v.id === saved.version)) setVersion(saved.version)
           if (saved.route) navigate(saved.route)
         }}
       />

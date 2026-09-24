@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import styled from 'styled-components'
+import VersionNotesPanel from './VersionNotesPanel'
 
 /**
  * Reviewer chrome: a compact dark strip above the product prototype.
@@ -15,6 +16,8 @@ import styled from 'styled-components'
  *   versions              [{ id, label, description?, archived? }] for the switcher
  *   versionId             which entry is currently selected
  *   onVersionChange       called with the new id when the user picks one
+ *   versionNotes          [{ versionId, date, summary, sections }] — the living
+ *                          changelog behind the "Version notes" button
  *   commentSlotRef        callback ref for a CommentLayer portal target
  */
 
@@ -212,6 +215,45 @@ const CommentSlot = styled.div`
   align-items: center;
 `
 
+const NotesWrapper = styled.div`
+  position: relative;
+`
+
+/* Same outlined-pill language as the version Trigger, minus the caret. */
+const NotesButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid ${(p) => (p.$open ? '#555e66' : '#363d44')};
+  border-radius: 4px;
+  background: ${(p) => (p.$open ? '#262c32' : 'transparent')};
+  color: #c8cdd0;
+  font-family: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    background-color: #262c32;
+    border-color: #555e66;
+    color: #ffffff;
+  }
+`
+
+const NotesIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false">
+    <path
+      d="M3 1.5h6l2 2v9H3v-11z"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinejoin="round"
+    />
+    <path d="M5 6h4M5 8.5h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+  </svg>
+)
+
 export default function PrototypeBar({
   title,
   meta,
@@ -219,10 +261,13 @@ export default function PrototypeBar({
   versionId,
   onVersionChange,
   versionLabel = 'Version',
+  versionNotes,
   commentSlotRef,
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  const [notesOpen, setNotesOpen] = useState(false)
   const dropdownRef = useRef(null)
+  const notesRef = useRef(null)
 
   const selected = versions?.find((v) => v.id === versionId)
   const activeVersions = versions?.filter((v) => !v.archived) ?? []
@@ -246,6 +291,23 @@ export default function PrototypeBar({
     }
   }, [isOpen])
 
+  /* Same close behavior for the version notes document. */
+  useEffect(() => {
+    if (!notesOpen) return undefined
+    const onPointerDown = (e) => {
+      if (!notesRef.current?.contains(e.target)) setNotesOpen(false)
+    }
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setNotesOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [notesOpen])
+
   return (
     <Bar>
       <Identity>
@@ -264,7 +326,7 @@ export default function PrototypeBar({
             <Trigger
               type="button"
               $open={isOpen}
-              onClick={() => setIsOpen((v) => !v)}
+              onClick={() => { setNotesOpen(false); setIsOpen((v) => !v) }}
               aria-expanded={isOpen}
               aria-haspopup="listbox"
             >
@@ -325,6 +387,34 @@ export default function PrototypeBar({
               </Menu>
             )}
           </DropdownWrapper>
+        )}
+
+        {versionNotes?.length > 0 && (
+          <NotesWrapper ref={notesRef}>
+            <NotesButton
+              type="button"
+              $open={notesOpen}
+              onClick={() => { setIsOpen(false); setNotesOpen((v) => !v) }}
+              aria-expanded={notesOpen}
+              aria-haspopup="dialog"
+            >
+              <NotesIcon />
+              Version notes
+            </NotesButton>
+
+            {notesOpen && (
+              <VersionNotesPanel
+                entries={versionNotes}
+                versions={versions}
+                activeVersionId={versionId}
+                onGoToVersion={(id) => {
+                  setNotesOpen(false)
+                  if (id !== versionId) onVersionChange?.(id)
+                }}
+                onClose={() => setNotesOpen(false)}
+              />
+            )}
+          </NotesWrapper>
         )}
 
         {/* CommentLayer portals its toggle button into this slot. */}

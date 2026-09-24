@@ -1,7 +1,8 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import styled from 'styled-components'
 import { Alert } from '@zendeskgarden/react-notifications'
 import { useAppContext } from '../context/AppContext'
+import { highlightText } from '../utils/highlight'
 
 /* Renders as the body of the AI agents capsule — the capsule header carries the
    title and description, so this component is only the content. */
@@ -92,10 +93,53 @@ const RadioHint = styled.span`
   margin-top: 2px;
 `
 
-export default function AIAgentsSection({ roleId }) {
+const AI_AGENTS_OPTIONS = [
+  {
+    value: 'no_access',
+    label: 'No access',
+    description: 'Users with this custom role can’t view or access AI agents. Selecting this option doesn’t hide AI agents from the product icons menu, but users can’t access the AI agents dashboard.',
+  },
+  {
+    value: 'client_admin',
+    label: 'Client admin',
+    description: 'Users can manage all AI agent capabilities, including creating, editing, publishing, and deleting agents, configuring settings, and managing API integrations.',
+  },
+  {
+    value: 'client_editor',
+    label: 'Client editor',
+    description: 'Users can create and edit AI agents, but can’t publish or delete agents, configure settings, or manage API integrations.',
+  },
+  {
+    value: 'client_user',
+    label: 'Client user',
+    description: 'Users can manage AI agents with restrictions on sensitive capabilities, such as agents cannot access API integration.',
+  },
+]
+
+/* The capsule wrapper can't see inside this component, so it searches this
+   text instead when deciding whether the capsule has a hit. */
+export const AI_AGENTS_SEARCH_TEXT = [
+  'Opt in for AI agents',
+  'Opting in to AI agents moves settings to this page',
+  'AI agent settings will only be available here in the roles and permissions pages.',
+  ...AI_AGENTS_OPTIONS.flatMap(o => [o.label, o.description]),
+].join(' ')
+
+export default function AIAgentsSection({ roleId, query, directAccess = false }) {
   const radioRef = useRef(null)
   const { getAiAgentsState, updateAiAgentsState } = useAppContext()
   const { optedIn, saved, accessLevel } = getAiAgentsState(roleId)
+  const options = AI_AGENTS_OPTIONS
+  const showRadios = directAccess || optedIn || saved
+
+  useEffect(() => {
+    if (!directAccess) return
+    if (!accessLevel) {
+      updateAiAgentsState(roleId, { optedIn: true, accessLevel: 'no_access' })
+    } else if (!optedIn) {
+      updateAiAgentsState(roleId, { optedIn: true })
+    }
+  }, [directAccess, accessLevel, optedIn, roleId, updateAiAgentsState])
 
   const handleOptIn = (e) => {
     updateAiAgentsState(roleId, {
@@ -110,63 +154,43 @@ export default function AIAgentsSection({ roleId }) {
     }
   }
 
-  const options = [
-    {
-      value: 'no_access',
-      label: 'No access',
-      description: 'Users with this custom role can’t view or access AI agents. Selecting this option doesn’t hide AI agents from the product icons menu, but users can’t access the AI agents dashboard.',
-    },
-    {
-      value: 'client_admin',
-      label: 'Client admin',
-      description: 'Users can manage all AI agent capabilities, including creating, editing, publishing, and deleting agents, configuring settings, and managing API integrations.',
-    },
-    {
-      value: 'client_editor',
-      label: 'Client editor',
-      description: 'Users can create and edit AI agents, but can’t publish or delete agents, configure settings, or manage API integrations.',
-    },
-    {
-      value: 'client_user',
-      label: 'Client user',
-      description: 'Users can manage AI agents with restrictions on sensitive capabilities, such as agents cannot access API integration.',
-    },
-  ]
-
   return (
     <Section>
-      {!saved && (
+      {!directAccess && !saved && (
         <CheckboxRow>
           <CheckboxInput
             checked={optedIn}
             onChange={handleOptIn}
           />
-          Opt in for AI agents
+          {highlightText('Opt in for AI agents', query)}
         </CheckboxRow>
       )}
 
-      {!saved && (
+      {!directAccess && !saved && (
         <StyledAlert type="info" role="note">
-          <Alert.Title>Opting in to AI agents moves settings to this page</Alert.Title>
+          <Alert.Title>{highlightText('Opting in to AI agents moves settings to this page', query)}</Alert.Title>
           <Alert.Paragraph>
-            AI agent settings will only be available here in the roles and permissions pages.
+            {highlightText('AI agent settings will only be available here in the roles and permissions pages.', query)}
           </Alert.Paragraph>
         </StyledAlert>
       )}
 
-      {(optedIn || saved) && (
-        <RadioGroup ref={radioRef}>
+      {showRadios && (
+        <RadioGroup ref={radioRef} style={directAccess ? { marginTop: 0 } : undefined}>
           {options.map(option => (
             <RadioLabel key={option.value}>
               <RadioInput
                 name={`ai-agents-access-${roleId}`}
                 value={option.value}
                 checked={accessLevel === option.value}
-                onChange={() => updateAiAgentsState(roleId, { accessLevel: option.value })}
+                onChange={() => updateAiAgentsState(roleId, {
+                  optedIn: true,
+                  accessLevel: option.value,
+                })}
               />
               <RadioTextWrap>
-                <RadioTitle>{option.label}</RadioTitle>
-                <RadioHint>{option.description}</RadioHint>
+                <RadioTitle>{highlightText(option.label, query)}</RadioTitle>
+                <RadioHint>{highlightText(option.description, query)}</RadioHint>
               </RadioTextWrap>
             </RadioLabel>
           ))}

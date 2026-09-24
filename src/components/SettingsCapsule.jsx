@@ -1,4 +1,5 @@
 import styled from 'styled-components'
+import { highlightText, deepHighlight, extractText } from '../utils/highlight'
 
 /* A permission group as a collapsible card. White with a hairline border — the
    capsule from the roles page redesign: the header alone (title, description,
@@ -6,7 +7,7 @@ import styled from 'styled-components'
    body can be used without collapsing the card under the cursor. */
 const Card = styled.section`
   box-sizing: border-box;
-  max-width: 630px;
+  max-width: ${p => p.$maxWidth || 630}px;
   border: 1px solid #d8dcde;
   border-radius: 8px;
   background: #fff;
@@ -58,19 +59,38 @@ const Body = styled.div`
   border-top: 1px solid #e9ebed;
 `
 
-export default function SettingsCapsule({ title, description, open, onToggle, children }) {
+/* `query` is the role page's settings search: a capsule whose title,
+   description, or body contains the query opens itself and highlights the
+   matching words. Component children render their own internals, so those
+   capsules hand their searchable text over via `searchText` instead. */
+export default function SettingsCapsule({
+  title,
+  description,
+  open,
+  onToggle,
+  query,
+  searchText,
+  maxWidth,
+  children,
+}) {
+  const q = (query || '').trim()
+  const hasHit = Boolean(q) &&
+    `${title} ${description || ''} ${searchText ?? extractText(children)}`
+      .toLowerCase()
+      .includes(q.toLowerCase())
+  const isOpen = open || hasHit
   return (
-    <Card>
-      <Header onClick={onToggle} aria-expanded={open}>
+    <Card $maxWidth={maxWidth}>
+      <Header onClick={onToggle} aria-expanded={isOpen}>
         <HeaderText>
-          <HeaderTitle>{title}</HeaderTitle>
-          {description && <HeaderDescription>{description}</HeaderDescription>}
+          <HeaderTitle>{highlightText(title, q)}</HeaderTitle>
+          {description && <HeaderDescription>{highlightText(description, q)}</HeaderDescription>}
         </HeaderText>
-        <Chevron $open={open} width="12" height="8" viewBox="0 0 12 8" fill="none" aria-hidden="true">
+        <Chevron $open={isOpen} width="12" height="8" viewBox="0 0 12 8" fill="none" aria-hidden="true">
           <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </Chevron>
       </Header>
-      {open && <Body>{children}</Body>}
+      {isOpen && <Body>{deepHighlight(children, q)}</Body>}
     </Card>
   )
 }
