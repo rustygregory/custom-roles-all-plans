@@ -278,23 +278,45 @@ const ActionsWrap = styled.div`
   margin-right: 8px;
 `
 
+/* Flora Outline Button: label button/fg/default, border button/border/default,
+   icon button/fg/subtle (grey.900 / grey.500 / grey.700). */
 const ActionsButton = styled(Button)`
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #1f73b7;
-  border-color: #1f73b7;
+  && {
+    color: #2f3130;
+    border-color: #999b97;
+  }
 
-  &:hover {
-    color: #144a75;
-    border-color: #144a75;
+  &&:hover {
+    color: #2f3130;
+    border-color: #8b8e89;
+  }
+
+  /* Chevron at 20px to match Flora media button icon sizing. */
+  &&& svg {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    color: #646864;
   }
 `
 
-const ActionsChevron = styled.span`
-  display: inline-flex;
-  transform: ${p => p.$open ? 'rotate(180deg)' : 'none'};
-`
+/* Garden/Flora Icons chevron-down stroke — scaled to 20×20 in the button. */
+const ChevronDownIcon = (props) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 12 12"
+    focusable="false"
+    aria-hidden="true"
+    {...props}
+  >
+    <path
+      fill="currentColor"
+      d="M1.646 3.646a.5.5 0 01.638-.057l.07.057L6 7.293l3.646-3.647a.5.5 0 01.638-.057l.07.057a.5.5 0 01.057.638l-.057.07-4 4a.5.5 0 01-.638.057l-.07-.057-4-4a.5.5 0 010-.708z"
+    />
+  </svg>
+)
 
 const ActionsMenu = styled.div`
   position: absolute;
@@ -354,6 +376,7 @@ const OpenAllRow = styled.div`
   align-items: flex-end;
   gap: 16px;
   box-sizing: border-box;
+  width: 100%;
   max-width: ${p => p.$maxWidth || 630}px;
   margin-bottom: 12px;
 `
@@ -384,9 +407,24 @@ const SearchFieldWrap = styled.div`
   color: #68737d;
 `
 
-/* Flora Filters Media Button: outline Default + Slider (adjust) start icon. */
+/* Flora Filters Media Button: outline Default + Slider start icon.
+   Label button/fg/default, border button/border/default, icon button/fg/subtle. */
 const FilterButton = styled(Button)`
   flex-shrink: 0;
+
+  && {
+    color: #2f3130;
+    border-color: #999b97;
+  }
+
+  &&:hover {
+    color: #2f3130;
+    border-color: #8b8e89;
+  }
+
+  && svg {
+    color: #646864;
+  }
 `
 
 /* Flora Icons Slider stroke — 20×20 (@zendesk-ui/assets/icons/20px/slider-stroke.svg).
@@ -454,28 +492,34 @@ const GroupHeading = styled.h2`
   }
 `
 
-/* Settings title + Open all: same 8px to Tickets as Products title → first capsule. */
+/* Settings title + Open all: same 8px to Tickets as Products title → first capsule.
+   Full capsule width so Open all lands on the capsules’ right edge. */
 const SectionTitleRow = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   box-sizing: border-box;
+  width: 100%;
   max-width: ${p => p.$maxWidth || 630}px;
   margin: 0 0 8px;
+
+  > :first-child {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+  }
 `
 
-const OpenAllButton = styled.button.attrs({ type: 'button' })`
-  border: none;
-  background: none;
-  padding: 0;
-  font-family: inherit;
-  font-size: 14px;
-  color: #1f73b7;
-  cursor: pointer;
+/* Flora Basic Button — tertiary/deemphasized in-page action (button/fg/default).
+   Zero end padding so the label shares the capsules’ right edge. */
+const OpenAllButton = styled(Button).attrs({
+  isBasic: true,
+})`
+  flex-shrink: 0;
 
-  &:hover {
-    text-decoration: underline;
+  && {
+    padding-inline-end: 0;
   }
 `
 
@@ -1060,11 +1104,9 @@ export default function RoleDetail() {
           <ActionsWrap ref={actionsRef}>
             <ActionsButton onClick={() => setShowActionsMenu(o => !o)}>
               Actions
-              <ActionsChevron $open={showActionsMenu}>
-                <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </ActionsChevron>
+              <Button.EndIcon isRotated={showActionsMenu}>
+                <ChevronDownIcon />
+              </Button.EndIcon>
             </ActionsButton>
             {showActionsMenu && (
               <ActionsMenu>

@@ -1,5 +1,6 @@
 import styled from 'styled-components'
 import { useNavigate } from 'react-router-dom'
+import { Anchor } from '@zendeskgarden/react-buttons'
 import { useAppContext } from '../context/AppContext'
 import Breadcrumbs from './Breadcrumbs'
 
@@ -31,13 +32,12 @@ const Subtitle = styled.p`
   margin: 0;
 `
 
-const SubtitleLink = styled.a`
-  color: #1f73b7;
-  text-decoration: none;
-
-  &:hover {
-    text-decoration: underline;
-  }
+/* Flora Anchor (primary, underlined) + isExternal → Flora/Garden external icon. */
+const SubtitleLink = styled(Anchor)`
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
 `
 
 const HeaderActions = styled.div`
@@ -161,7 +161,9 @@ export default function RolesList() {
           <Title>Roles</Title>
           <Subtitle>
             Create, assign, and manage roles for your team.{' '}
-            <SubtitleLink href="#">Learn about managing roles ↗</SubtitleLink>
+            <SubtitleLink isExternal href="#">
+              Learn about managing roles
+            </SubtitleLink>
           </Subtitle>
         </div>
         <HeaderActions>
