@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import styled from 'styled-components'
 import { Button } from '@zendeskgarden/react-buttons'
-import { FILTER_GROUPS, FILTER_TOPICS } from '../data/permissionFilters'
+import { filterGroupsForVersion, FILTER_TOPICS } from '../data/permissionFilters'
 import { BAR_HEIGHT } from '../prototype-bar/PrototypeBar'
 
 /* Flora Filter drawer: full-height panel on the right with scrim, square corners.
@@ -139,8 +139,10 @@ export default function PermissionsFilterDrawer({
   onClose,
   value,
   onApply,
+  version,
 }) {
   const [draft, setDraft] = useState(value)
+  const groups = filterGroupsForVersion(version)
 
   useEffect(() => {
     if (isOpen) setDraft(value)
@@ -191,7 +193,7 @@ export default function PermissionsFilterDrawer({
           <Section>
             <SectionTitle>Group</SectionTitle>
             <OptionList>
-              {FILTER_GROUPS.map((g) => (
+              {groups.map((g) => (
                 <OptionLabel key={g.id}>
                   <OptionInput
                     checked={draft.groups.includes(g.id)}

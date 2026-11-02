@@ -1,13 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import styled from 'styled-components'
-import { Button } from '@zendeskgarden/react-buttons'
+import { Button, Anchor } from '@zendeskgarden/react-buttons'
 import { Alert, Notification } from '@zendeskgarden/react-notifications'
-import { Field, MediaInput } from '@zendeskgarden/react-forms'
+import { Field, Input, MediaInput, Textarea } from '@zendeskgarden/react-forms'
 import { Tag } from '@zendeskgarden/react-tags'
 import Breadcrumbs from './Breadcrumbs'
 import AIAgentsSection, { AI_AGENTS_SEARCH_TEXT } from './AIAgentsSection'
 import ProductAccessSection, { productAccessSearchText } from './ProductAccessSection'
+import ReportingAnalyticsErrors, { REPORTING_ERRORS_SEARCH_TEXT } from './ReportingAnalyticsErrors'
+import WorkforceManagementSection, {
+  WFM_ASSIGNMENT_SEARCH_TEXT,
+} from './WorkforceManagementSection'
 import SettingsCapsule from './SettingsCapsule'
 import AssignRoleModal from './AssignRoleModal'
 import PermissionsFilterDrawer from './PermissionsFilterDrawer'
@@ -31,6 +35,7 @@ import {
   tagSearchText,
   blockVisibleV35,
 } from '../data/permissionFilters'
+import { getAccessChangePreview } from '../utils/accessChanges'
 
 const PageWrapper = styled.div`
   display: flex;
@@ -123,17 +128,24 @@ const MemberLink = styled.span`
   }
 `
 
-const AccessWarning = styled(Alert)`
+/* Flora Alert (warning): 16px radius, warningHue.200 surface,
+   title/body fg/warningEmphasis, icon fg/warning. */
+const AccessWarning = styled(Alert).attrs({
+  'data-inspect-name': 'Alert',
+  'data-inspect-token-bg': 'bg/warning',
+  'data-inspect-token-color': 'fg/warningEmphasis',
+})`
   position: relative;
   margin-top: 8px;
-  padding: 8px 12px 8px 32px;
-  border-radius: 8px;
-  font-size: 13px;
-  line-height: 1.4;
+  padding: 16px 16px 16px 40px;
+  border: none;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 20px;
   background-color: #f6eba6;
-  border-color: #f6eba6;
+  color: #3b3405;
 
-  /* Garden ships the outlined warning glyph; swap it for the filled one. */
+  /* Garden ships stroke; Flora Alert uses filled Central Exclamation triangle. */
   [data-garden-id="notifications.icon"] {
     display: none;
   }
@@ -149,6 +161,36 @@ const AccessWarning = styled(Alert)`
   }
 `
 
+/* V2.5: one summary warning below the Team members explanation (not per name). */
+const SummaryAccessWarning = styled(AccessWarning)`
+  margin: 0 0 16px;
+`
+
+const SummaryWarningList = styled.ul`
+  margin: 2px 0 0;
+  padding-left: 1.25em;
+  font-size: 14px;
+  line-height: 20px;
+  color: #3b3405;
+
+  li {
+    margin: 0;
+  }
+`
+
+const PreviewAccessAnchor = styled(Anchor)`
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 14px;
+  line-height: 20px;
+  /* Override alert ink so this stays Flora primary blue (blue.600 / .700). */
+  color: #698cd3 !important;
+
+  &:hover {
+    color: #406cc4 !important;
+  }
+`
+
 const DisabledProductNote = styled.div`
   font-size: 14px;
   color: #87929d;
@@ -158,28 +200,32 @@ const DisabledProductNote = styled.div`
    bulleted "current to new" line. In V1 only the AI agents line ever appears;
    V2 adds one line per changed product. */
 const WarningChangeList = styled.div`
-  margin: 2px 0 0;
-  font-size: 13px;
-  line-height: 1.4;
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 20px;
   color: #3b3405;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 `
 
+/* Flora Icons Exclamation triangle (fill) — 16px slot, fg/warning (yellow.700). */
 const FilledWarningIcon = () => (
   <svg
-    width="14"
-    height="14"
-    viewBox="0 0 16 16"
+    xmlns="http://www.w3.org/2000/svg"
+    width="16"
+    height="16"
+    viewBox="0 0 20 20"
+    fill="none"
     aria-hidden="true"
     focusable="false"
-    style={{ position: 'absolute', left: 10, top: 10, color: '#7f7004' }}
+    style={{ position: 'absolute', left: 12, top: 16, color: '#7f7004' }}
   >
     <path
       fillRule="evenodd"
+      clipRule="evenodd"
       fill="currentColor"
-      d="M8.9 1.9c-.4-.8-1.4-.8-1.8 0L.7 12.6c-.5.8.1 1.9 1 1.9h12.6c.9 0 1.5-1.1 1-1.9L8.9 1.9zM7.25 6h1.5v4.5h-1.5V6zM8 13.25a.95.95 0 1 1 0-1.9.95.95 0 0 1 0 1.9z"
+      d="M7.84403 3.73819C8.8072 2.08705 11.1923 2.08717 12.1556 3.73819L17.9905 13.745C18.9606 15.4089 17.7619 17.4995 15.8352 17.4999H4.16532C2.2385 17.4997 1.039 15.409 2.00907 13.745L7.84403 3.73819ZM10.0003 7.51651C10.4604 7.51666 10.8333 7.88938 10.8333 8.34952V10.8446C10.8331 11.3046 10.4603 11.6775 10.0003 11.6776C9.54014 11.6776 9.16645 11.3047 9.1663 10.8446V8.34952C9.1663 7.88928 9.54005 7.51651 10.0003 7.51651ZM10.0003 12.2919C10.5754 12.2921 11.0412 12.7578 11.0413 13.3329C11.0413 13.9081 10.5755 14.3748 10.0003 14.3749C9.42496 14.3749 8.95829 13.9082 8.95829 13.3329C8.95843 12.7577 9.42505 12.2919 10.0003 12.2919Z"
     />
   </svg>
 )
@@ -279,16 +325,21 @@ const ActionsMenuItem = styled.button`
   }
 `
 
+/* Flora Typography Large / Default — 26/32, fg/default (neutralHue.900). */
 const Title = styled.h1`
-  font-size: 24px;
-  font-weight: 600;
-  color: #2f3941;
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 400;
+  color: #2f3130;
   margin: 0 0 4px;
 `
 
+/* Flora Typography Medium / Default — 14/20, fg/default (neutralHue.900). */
 const Subtitle = styled.p`
-  font-size: 13px;
-  color: #68737d;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  color: #2f3130;
   margin: 0 0 32px;
 `
 
@@ -307,70 +358,111 @@ const OpenAllRow = styled.div`
   margin-bottom: 12px;
 `
 
-const SearchFilterStack = styled.div`
+/* Search + Filter + optional tags; always 32px below to Settings. */
+const PermissionsFilterBlock = styled.div`
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
   gap: 12px;
-  max-width: ${p => p.$maxWidth || 400}px;
+  max-width: ${p => p.$maxWidth || 630}px;
   width: 100%;
-  margin-bottom: ${p => p.$spaceBeforeSettings ? 20 : 12}px;
+  margin-bottom: 32px;
+`
+
+/* Flora Filters: Search + Filter entry point in one row, 12px between. */
+const SearchFilterRow = styled.div`
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  width: 100%;
 `
 
 /* Garden's search pattern: a MediaInput with the magnifier at the start. */
 const SearchFieldWrap = styled.div`
-  width: 100%;
-  max-width: ${p => p.$maxWidth || 320}px;
+  flex: 1;
+  min-width: 0;
+  max-width: ${p => p.$maxWidth || 400}px;
   color: #68737d;
 `
 
+/* Flora Filters Media Button: outline Default + Slider (adjust) start icon. */
 const FilterButton = styled(Button)`
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  flex-shrink: 0;
 `
+
+/* Flora Icons Slider stroke — 20×20 (@zendesk-ui/assets/icons/20px/slider-stroke.svg).
+   Spreads StartIcon props so Garden can size the SVG (not a 16px Garden icon stretched). */
+const FilterSliderIcon = (props) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    aria-hidden="true"
+    focusable="false"
+    {...props}
+    width="20"
+    height="20"
+    viewBox="0 0 20 20"
+  >
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M5.83301 2.5C6.29314 2.5 6.66682 2.87292 6.66699 3.33301V4.27148C8.10484 4.64145 9.16699 5.94638 9.16699 7.5C9.16699 9.05362 8.10484 10.3586 6.66699 10.7285V16.667C6.66682 17.1271 6.29314 17.5 5.83301 17.5C5.37303 17.4998 5.00018 17.127 5 16.667V10.7285C3.56202 10.3586 2.5 9.05371 2.5 7.5C2.5 5.94629 3.56202 4.64135 5 4.27148V3.33301C5.00018 2.87303 5.37303 2.50018 5.83301 2.5ZM5.83301 5.83301C4.91214 5.83318 4.16699 6.5791 4.16699 7.5C4.16699 8.4209 4.91214 9.16682 5.83301 9.16699C6.75402 9.16699 7.5 8.42101 7.5 7.5C7.5 6.57899 6.75402 5.83301 5.83301 5.83301Z"
+      fill="currentColor"
+    />
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M14.167 2.5C14.627 2.50018 14.9998 2.87303 15 3.33301V10.9385C16.438 11.3084 17.5 12.6133 17.5 14.167C17.4998 16.0082 16.0082 17.4998 14.167 17.5C12.3256 17.5 10.8332 16.0083 10.833 14.167C10.833 12.6134 11.8952 11.3085 13.333 10.9385V3.33301C13.3332 2.87292 13.7069 2.5 14.167 2.5ZM14.167 12.5C13.246 12.5 12.5 13.246 12.5 14.167C12.5002 15.0879 13.2461 15.833 14.167 15.833C15.0877 15.8328 15.8328 15.0877 15.833 14.167C15.833 13.2461 15.0879 12.5002 14.167 12.5Z"
+      fill="currentColor"
+    />
+  </svg>
+)
 
 const FilterTagsRow = styled.div`
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  /* Flora Filters: 8px between tags; 12px above via PermissionsFilterBlock gap. */
   gap: 8px;
-  max-width: ${p => p.$maxWidth || 630}px;
-  margin-bottom: 20px;
+  width: 100%;
 `
 
-const ClearFiltersLink = styled.button.attrs({ type: 'button' })`
-  border: none;
-  background: none;
-  padding: 0;
-  font-family: inherit;
-  font-size: 14px;
-  color: #1f73b7;
-  cursor: pointer;
-
-  &:hover {
-    text-decoration: underline;
-  }
+/* Flora Filters: Basic Button (fg/default) — not link/primary. */
+const ClearFiltersButton = styled(Button).attrs({
+  isBasic: true,
+  size: 'small',
+})`
+  flex-shrink: 0;
+  /* Sit on the medium Tag row without the full small-button chrome. */
+  height: 20px;
+  min-height: 20px;
+  padding: 0 4px;
+  line-height: 20px;
 `
 
+/* Flora Typography Large / Default — 18/24, fg/default (neutralHue.900).
+   8px below to first capsule (Settings and Products share this). */
 const GroupHeading = styled.h2`
-  font-size: 16px;
-  font-weight: 600;
-  color: #2f3941;
-  margin: 28px 0 8px;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 400;
+  color: #2f3130;
+  margin: ${p => p.$flush ? '0' : '28px 0 8px'};
   max-width: ${p => p.$maxWidth || 400}px;
 
   &:first-of-type {
-    margin-top: 0;
+    margin-top: ${p => p.$flush ? '0' : undefined};
   }
 `
 
-const GroupDescription = styled.p`
-  font-size: 13px;
-  color: #68737d;
-  margin: 0 0 12px;
-  max-width: ${p => p.$maxWidth || 400}px;
-  line-height: 1.45;
+/* Settings title + Open all: same 8px to Tickets as Products title → first capsule. */
+const SectionTitleRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-sizing: border-box;
+  max-width: ${p => p.$maxWidth || 630}px;
+  margin: 0 0 8px;
 `
 
 const OpenAllButton = styled.button.attrs({ type: 'button' })`
@@ -391,12 +483,95 @@ const SubSectionHeader = styled.h3`
   font-size: 14px;
   font-weight: 600;
   color: #2f3941;
-  margin: 16px 0 8px;
+  /* Within-section title → controls; between-section spacing is Body gap 24px. */
+  margin: 0 0 8px;
 `
 
+/* Flora Layout: spacing.block.md (20px) between stacked form fields. */
 const FieldGroup = styled.div`
-  margin-bottom: 16px;
+  max-width: ${p => p.$maxWidth || 400}px;
+  margin-bottom: 20px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
 `
+
+/* Flora error Alert — matches Flora Core Alert (error): soft danger surface,
+   16px radius, filled red icon with white bang, dismiss control. Built to
+   match the Flora specimen rather than Garden’s stroke icon. */
+const SaveErrorAlert = styled.div.attrs({ role: 'alert' })`
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 630px;
+  margin: 0 0 24px;
+  padding: 16px;
+  border-radius: 16px;
+  border: none;
+  background: #f7e5e6;
+  color: #5f1c20;
+`
+
+const SaveErrorIcon = styled.span`
+  display: flex;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  /* Flora Alert type icon: filled danger/700, white bang. */
+  color: #c63f46;
+`
+
+const SaveErrorBody = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+`
+
+const SaveErrorTitle = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #5f1c20;
+`
+
+const SaveErrorText = styled.div`
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: #5f1c20;
+
+  ul {
+    margin: 8px 0 0;
+    padding-left: 1.25em;
+  }
+
+  li {
+    margin: 2px 0;
+  }
+`
+
+/* Central / Flora alert-error-fill — white plate so evenodd bang reads white. */
+const FloraErrorIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <circle cx="7.5" cy="8.5" r="7.5" fill="#fff" />
+    <path
+      fill="currentColor"
+      fillRule="evenodd"
+      d="M7.5 1C3.36 1 0 4.36 0 8.5 0 12.64 3.36 16 7.5 16S15 12.64 15 8.5C15 4.36 11.64 1 7.5 1zM7 4.5c0-.28.22-.5.5-.5s.5.22.5.5V9c0 .28-.22.5-.5.5S7 9.28 7 9V4.5zm.5 8.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"
+    />
+  </svg>
+)
 
 const Label = styled.label`
   display: block;
@@ -408,43 +583,8 @@ const Label = styled.label`
 
 const HintText = styled.span`
   font-size: 12px;
-  color: #68737d;
+  color: #646864;
   font-weight: 400;
-`
-
-const Input = styled.input`
-  width: 100%;
-  max-width: 400px;
-  padding: 8px 12px;
-  border: 1px solid #d8dcde;
-  border-radius: 4px;
-  font-size: 14px;
-  box-sizing: border-box;
-
-  &:focus {
-    outline: none;
-    border-color: #1f73b7;
-    box-shadow: 0 0 0 3px rgba(31, 115, 183, 0.15);
-  }
-`
-
-const Textarea = styled.textarea`
-  width: 100%;
-  max-width: 400px;
-  padding: 8px 12px;
-  border: 1px solid #d8dcde;
-  border-radius: 4px;
-  font-size: 14px;
-  min-height: 60px;
-  resize: vertical;
-  box-sizing: border-box;
-  font-family: inherit;
-
-  &:focus {
-    outline: none;
-    border-color: #1f73b7;
-    box-shadow: 0 0 0 3px rgba(31, 115, 183, 0.15);
-  }
 `
 
 const CheckboxGroup = styled.div`
@@ -474,7 +614,6 @@ const RadioGroup = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 12px;
 `
 
 const RadioLabel = styled.label`
@@ -527,6 +666,8 @@ const V2_CAPSULE_KEYS = [...CAPSULE_KEYS.filter(k => k !== 'ai-agents'), ...PROD
 const V3_SETTINGS_KEYS = CAPSULE_KEYS.filter(k => k !== 'ai-agents' && k !== 'knowledge')
 const V3_PRODUCT_KEYS = PRODUCT_CAPSULES_V3.map(p => p.id)
 const V3_CAPSULE_KEYS = [...V3_SETTINGS_KEYS, ...V3_PRODUCT_KEYS]
+/* V4: WFM section has one capsule; nested permission groups live inside it. */
+const V4_CAPSULE_KEYS = ['wfm-role-assignment', ...V3_CAPSULE_KEYS]
 
 /* Block tag lists per settings capsule — used by V3.5 to know if anything remains. */
 const SETTINGS_BLOCK_TAGS = {
@@ -573,7 +714,11 @@ export default function RoleDetail() {
     saveProductAccess,
     copyProductAccess,
   } = useAppContext()
-  const isPanelVersion = version === 'v3' || version === 'v3.5'
+  const isPanelVersion = version === 'v3' || version === 'v3.5' || version === 'v4'
+  const isWfmConcept = version === 'v4'
+  /* V2.5 keeps V2 opt-in capsules but replaces per-member warnings with a
+     single summary + work-area preview table. */
+  const isScaledSimplified = version === 'v2.5'
   /* Capsules stay at the original 630px. Name / description / search are 400. */
   const capsuleMaxWidth = 630
   const fieldMaxWidth = 400
@@ -590,6 +735,10 @@ export default function RoleDetail() {
   const isCreate = id === 'create'
   const role = !isCreate ? roles.find(r => r.id === id) : null
   const roleName = role?.name || ''
+  const isCounselor = id === 'counselor'
+  /* Counselor save-blocking fields (Brands / Groups). Cleared as the user fixes
+     the Reporting and analytics multiselects — hides the page error Alert. */
+  const [counselorSaveErrors, setCounselorSaveErrors] = useState(['Brands', 'Groups'])
 
   // After a new role is created we stay on the page in "saved" mode for this role.
   const [savedRoleId, setSavedRoleId] = useState(null)
@@ -608,13 +757,14 @@ export default function RoleDetail() {
   const accessWillChange = (member) =>
     !(aiAgentsState.accessLevel === 'no_access' && member.aiAgentsAccess === 'No Access')
 
-  /* All pending access-change warnings for one member, in capsule order: the
-     V2 product opt-ins first (Support → Chat), then AI agents. A member is only
-     affected by a product change when their current level differs from the new
-     one — matching the AI agents no-access/no-change rule. */
+  /* Per-member access-change banners: V1 (AI agents only) and V2 (products +
+     AI). V2.5 uses the summary warning instead. V3+ assumes products are already
+     migrated, so the side panel stays quiet. */
   const warningsFor = (member) => {
+    if (isPanelVersion || isScaledSimplified) return []
+
     const list = []
-    if (version !== 'v1') {
+    if (version === 'v2') {
       for (const p of radioProducts) {
         const s = getProductAccess(aiAgentsKey, p.id)
         if (s.optedIn && !s.saved && s.accessLevel) {
@@ -636,12 +786,21 @@ export default function RoleDetail() {
   const [descValue, setDescValue] = useState(role?.description || '')
 
   const aiAgentsRef = useRef(null)
+  const wfmRef = useRef(null)
+  const scrollAreaRef = useRef(null)
+  const saveErrorAlertRef = useRef(null)
 
   /* Permissions live in capsules now. In V1 AI agents starts open — it's the
      section that version exists to show. In V2+ every capsule starts closed so
-     the product list reads as a flat set of equals. Reset per role and per
-     version switch so neither carries over a fully-expanded page. */
-  const [openCapsules, setOpenCapsules] = useState(version === 'v1' ? { 'ai-agents': true } : {})
+     the product list reads as a flat set of equals. Counselor opens Reporting
+     so the inline Brands/Groups errors are visible on land. Reset per role and
+     per version switch so neither carries over a fully-expanded page. */
+  const initialOpenCapsules = () => {
+    if (id === 'counselor') return { reporting: true }
+    if (version === 'v1') return { 'ai-agents': true }
+    return {}
+  }
+  const [openCapsules, setOpenCapsules] = useState(initialOpenCapsules)
 
   /* Settings search: every capsule gets the query, opens itself on a hit, and
      highlights the matching words (handled inside SettingsCapsule). */
@@ -651,7 +810,12 @@ export default function RoleDetail() {
   useEffect(() => {
     setNameValue(role?.name || '')
     setDescValue(role?.description || '')
-    setOpenCapsules(version === 'v1' ? { 'ai-agents': true } : {})
+    setOpenCapsules(
+      id === 'counselor' ? { reporting: true }
+        : version === 'v1' ? { 'ai-agents': true }
+          : {},
+    )
+    setCounselorSaveErrors(id === 'counselor' ? ['Brands', 'Groups'] : [])
     setSettingsQuery('')
     setPermissionFilters(isPanelVersion ? DEFAULT_PERMISSION_FILTERS : { availableOnly: false, groups: [], topics: [] })
     setFilterDrawerOpen(false)
@@ -681,11 +845,32 @@ export default function RoleDetail() {
     .map(mid => teamMembers.find(m => m.id === mid))
     .filter(Boolean)
 
+  /* V2.5 summary: unique products + affected member count for the side panel. */
+  const scaledPreview = isScaledSimplified && !isCounselor
+    ? getAccessChangePreview({
+        members: assignedMembers,
+        version,
+        roleKey: aiAgentsKey,
+        getProductAccess,
+        getAiAgentsState,
+        radioProducts,
+      })
+    : null
+  const showScaledSummary = Boolean(scaledPreview && scaledPreview.affectedMemberCount > 0)
+
   const hasSaved = isCreate ? Boolean(savedRoleId) : true
   // Actions menu shows as soon as the role is saved (same time as the Team members panel).
   const showActions = hasSaved
 
   const handleSave = () => {
+    /* Counselor blocks save while Brands/Groups (etc.) are still invalid —
+       scroll to the page error Alert instead of toasting success. */
+    if (isCounselor && counselorSaveErrors.length > 0) {
+      scrollAreaRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+      saveErrorAlertRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+
     if (isCreate && nameValue.trim()) {
       const newId = nameValue.toLowerCase().replace(/\s+/g, '-')
       if (!roles.some(r => r.id === newId)) {
@@ -729,9 +914,11 @@ export default function RoleDetail() {
 
   const capsuleKeys = version === 'v1'
     ? CAPSULE_KEYS
-    : isPanelVersion
-      ? V3_CAPSULE_KEYS
-      : V2_CAPSULE_KEYS
+    : version === 'v4'
+      ? V4_CAPSULE_KEYS
+      : isPanelVersion
+        ? V3_CAPSULE_KEYS
+        : V2_CAPSULE_KEYS
   const allCapsulesOpen = capsuleKeys.every(key => openCapsules[key])
   const toggleAllCapsules = () => {
     setOpenCapsules(
@@ -816,7 +1003,11 @@ export default function RoleDetail() {
       permissionFilters.groups.length > 0 || permissionFilters.topics.length > 0
     if (!narrowing) return
 
-    const keys = version === 'v3.5' || version === 'v3' ? V3_CAPSULE_KEYS : V2_CAPSULE_KEYS
+    const keys = version === 'v4'
+      ? V4_CAPSULE_KEYS
+      : (version === 'v3.5' || version === 'v3')
+        ? V3_CAPSULE_KEYS
+        : V2_CAPSULE_KEYS
     const toOpen = keys.filter((key) => {
       if (!capsuleVisibleV3(key, permissionFilters)) return false
       if (version === 'v3.5' && SETTINGS_BLOCK_TAGS[key]) {
@@ -849,7 +1040,7 @@ export default function RoleDetail() {
           </Notification>
         </ToastWrapper>
       )}
-      <ScrollArea>
+      <ScrollArea ref={scrollAreaRef}>
         <Container>
           <Breadcrumbs items={[
             { label: 'People' },
@@ -860,7 +1051,9 @@ export default function RoleDetail() {
 
       <HeaderRow>
         <div>
-          <Title>{isCreate ? (hasSaved ? nameValue : 'Create role') : roleName}</Title>
+          <Title>
+            {isCreate && !hasSaved ? 'Create role' : (nameValue.trim() || roleName || 'Role')}
+          </Title>
           <Subtitle>Learn about role permissions and access</Subtitle>
         </div>
         {showActions && (
@@ -884,26 +1077,55 @@ export default function RoleDetail() {
         )}
       </HeaderRow>
 
-      {/* Name & Description */}
+      {isCounselor && counselorSaveErrors.length > 0 && (
+        <SaveErrorAlert ref={saveErrorAlertRef}>
+          <SaveErrorIcon>
+            <FloraErrorIcon />
+          </SaveErrorIcon>
+          <SaveErrorBody>
+            <SaveErrorTitle>Can&apos;t save this role</SaveErrorTitle>
+            <SaveErrorText>
+              You must finish the setting up the role
+              <ul>
+                {counselorSaveErrors.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </SaveErrorText>
+          </SaveErrorBody>
+        </SaveErrorAlert>
+      )}
+
+      {/* Name & Description — Flora Field + Input / Textarea. */}
       <FormSection>
-        <FieldGroup>
-          <Label>Name* (required)</Label>
-          <Input value={nameValue} onChange={(e) => setNameValue(e.target.value)} />
+        <FieldGroup $maxWidth={fieldMaxWidth}>
+          <Field>
+            <Field.Label>Name*</Field.Label>
+            <Input
+              value={nameValue}
+              onChange={(e) => setNameValue(e.target.value)}
+              required
+            />
+          </Field>
         </FieldGroup>
-        <FieldGroup>
-          <Label>Description</Label>
-          <Textarea value={descValue} onChange={(e) => setDescValue(e.target.value)} />
+        <FieldGroup $maxWidth={fieldMaxWidth}>
+          <Field>
+            <Field.Label>Description</Field.Label>
+            <Textarea
+              value={descValue}
+              onChange={(e) => setDescValue(e.target.value)}
+              minRows={3}
+              isResizable
+            />
+          </Field>
         </FieldGroup>
       </FormSection>
 
 
       {/* Permissions controls, then capsules. */}
       {isPanelVersion ? (
-        <>
-          <SearchFilterStack
-            $maxWidth={fieldMaxWidth}
-            $spaceBeforeSettings={filterTags.length === 0}
-          >
+        <PermissionsFilterBlock $maxWidth={capsuleMaxWidth}>
+          <SearchFilterRow>
             <SearchFieldWrap $maxWidth={fieldMaxWidth}>
               <Field>
                 <Field.Label>Search permissions</Field.Label>
@@ -920,25 +1142,27 @@ export default function RoleDetail() {
               </Field>
             </SearchFieldWrap>
             <FilterButton onClick={() => setFilterDrawerOpen(true)}>
+              <Button.StartIcon>
+                <FilterSliderIcon />
+              </Button.StartIcon>
               Filter{appliedFilterCount > 0 ? ` (${appliedFilterCount})` : ''}
             </FilterButton>
-          </SearchFilterStack>
-
+          </SearchFilterRow>
           {filterTags.length > 0 && (
-            <FilterTagsRow $maxWidth={capsuleMaxWidth}>
+            <FilterTagsRow>
               {filterTags.map((tag) => (
-                <Tag key={tag.key}>
+                <Tag key={tag.key} isPill={false}>
                   <span>{tag.label}</span>
                   <Tag.Close aria-label="Remove filter" onClick={() => removeFilterTag(tag.kind, tag.id)} />
                 </Tag>
               ))}
-              <ClearFiltersLink onClick={clearAllFilters}>Clear filters</ClearFiltersLink>
+              <ClearFiltersButton onClick={clearAllFilters}>Clear filters</ClearFiltersButton>
             </FilterTagsRow>
           )}
-        </>
+        </PermissionsFilterBlock>
       ) : (
         <OpenAllRow $maxWidth={capsuleMaxWidth}>
-          <SearchFieldWrap $maxWidth={320}>
+          <SearchFieldWrap $maxWidth={fieldMaxWidth}>
             <Field>
               <Field.Label>Search permissions</Field.Label>
               <MediaInput
@@ -960,19 +1184,48 @@ export default function RoleDetail() {
       )}
 
       <PermissionFilterProvider version={version} filters={permissionFilters}>
-      {isPanelVersion && (
+      {/* V4: Workforce Management (WFM) as a peer section to Settings/Products. */}
+      {isWfmConcept && (
         <>
-          <GroupHeading $maxWidth={capsuleMaxWidth}>Settings</GroupHeading>
-          <GroupDescription $maxWidth={capsuleMaxWidth}>
-            Support permissions for this role: tickets, people, channels, and more.
-          </GroupDescription>
-          {/* Right-aligned to capsules, 12px above them. */}
-          <OpenAllRow $maxWidth={capsuleMaxWidth} $endOnly>
+          <SectionTitleRow $maxWidth={capsuleMaxWidth}>
+            <GroupHeading $maxWidth={capsuleMaxWidth} $flush>
+              Workforce Management (WFM)
+            </GroupHeading>
             <OpenAllButton onClick={toggleAllCapsules}>
               {allCapsulesOpen ? 'Close all' : 'Open all'}
             </OpenAllButton>
-          </OpenAllRow>
+          </SectionTitleRow>
+
+          {showCapsule('wfm-role-assignment') && (
+            <div ref={wfmRef}>
+              <SettingsCapsule
+                title="WFM role assignment"
+                description="Choose whether people in this Support role also receive a WFM role."
+                searchText={withTags('wfm-role-assignment', WFM_ASSIGNMENT_SEARCH_TEXT)}
+                {...capsuleProps('wfm-role-assignment')}
+              >
+                <WorkforceManagementSection
+                  key={`${version}-${id}`}
+                  query={q}
+                  saved={hasSaved}
+                />
+              </SettingsCapsule>
+            </div>
+          )}
         </>
+      )}
+
+      {isPanelVersion && (
+        <SectionTitleRow $maxWidth={capsuleMaxWidth}>
+          <GroupHeading $maxWidth={capsuleMaxWidth} $flush={!isWfmConcept}>
+            Settings
+          </GroupHeading>
+          {!isWfmConcept && (
+            <OpenAllButton onClick={toggleAllCapsules}>
+              {allCapsulesOpen ? 'Close all' : 'Open all'}
+            </OpenAllButton>
+          )}
+        </SectionTitleRow>
       )}
 
       {showCapsule('tickets') && (
@@ -1312,33 +1565,44 @@ export default function RoleDetail() {
       {showCapsule('reporting') && (
       <SettingsCapsule
         title="Reporting and analytics"
-        description="Choose the reporting and analytics permissions for this role."
-        searchText={withTags('reporting')}
+        description={isCounselor
+          ? 'Choose the analytics permissions for this role.'
+          : 'Choose the reporting and analytics permissions for this role.'}
+        searchText={withTags('reporting', isCounselor ? REPORTING_ERRORS_SEARCH_TEXT : '')}
+        errorCount={isCounselor ? counselorSaveErrors.length : 0}
         {...capsuleProps('reporting')}
       >
-        <PermissionBlock tags={['reporting']}>
-          <Label style={{ marginBottom: '12px' }}>Explore permissions</Label>
-          <RadioGroup>
-            <RadioLabel><RadioInput name="explore" /> No access</RadioLabel>
-            <RadioLabel><RadioInput name="explore" defaultChecked /> View reports</RadioLabel>
-            <RadioLabel><RadioInput name="explore" /> Create reports</RadioLabel>
-            <RadioLabel><RadioInput name="explore" /> Create reports and manage permissions</RadioLabel>
-          </RadioGroup>
-        </PermissionBlock>
+        {isCounselor ? (
+          <PermissionBlock tags={['reporting']}>
+            <ReportingAnalyticsErrors onSaveErrorsChange={setCounselorSaveErrors} />
+          </PermissionBlock>
+        ) : (
+          <>
+            <PermissionBlock tags={['reporting']}>
+              <Label style={{ marginBottom: '12px' }}>Explore permissions</Label>
+              <RadioGroup>
+                <RadioLabel><RadioInput name="explore" /> No access</RadioLabel>
+                <RadioLabel><RadioInput name="explore" defaultChecked /> View reports</RadioLabel>
+                <RadioLabel><RadioInput name="explore" /> Create reports</RadioLabel>
+                <RadioLabel><RadioInput name="explore" /> Create reports and manage permissions</RadioLabel>
+              </RadioGroup>
+            </PermissionBlock>
 
-        <PermissionBlock tags={['reporting']}>
-          <SubSectionHeader>Reports permissions</SubSectionHeader>
-          <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Refer to the Reports tab in Support, not reports within Explore. These who can also export data.</CheckboxLabel>
-          </CheckboxGroup>
-        </PermissionBlock>
+            <PermissionBlock tags={['reporting']}>
+              <SubSectionHeader>Reports permissions</SubSectionHeader>
+              <CheckboxGroup>
+                <CheckboxLabel><CheckboxInput /> Refer to the Reports tab in Support, not reports within Explore. These who can also export data.</CheckboxLabel>
+              </CheckboxGroup>
+            </PermissionBlock>
 
-        <PermissionBlock tags={['reporting']}>
-          <SubSectionHeader>View Talk dashboard</SubSectionHeader>
-          <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput defaultChecked /> Can track phone calls on the Talk dashboard</CheckboxLabel>
-          </CheckboxGroup>
-        </PermissionBlock>
+            <PermissionBlock tags={['reporting']}>
+              <SubSectionHeader>View Talk dashboard</SubSectionHeader>
+              <CheckboxGroup>
+                <CheckboxLabel><CheckboxInput defaultChecked /> Can track phone calls on the Talk dashboard</CheckboxLabel>
+              </CheckboxGroup>
+            </PermissionBlock>
+          </>
+        )}
       </SettingsCapsule>
       )}
 
@@ -1360,12 +1624,7 @@ export default function RoleDetail() {
       )}
 
       {isPanelVersion && (
-        <>
-          <GroupHeading $maxWidth={capsuleMaxWidth}>Products</GroupHeading>
-          <GroupDescription $maxWidth={capsuleMaxWidth}>
-            Product access for this role. Radios are filler except AI agents.
-          </GroupDescription>
-        </>
+        <GroupHeading $maxWidth={capsuleMaxWidth}>Products</GroupHeading>
       )}
 
       {/* V2: after settings, one capsule per product. V3+: same, without Chat,
@@ -1403,7 +1662,7 @@ export default function RoleDetail() {
               p.id,
               p.disabled
                 ? 'Subscription limit reached'
-                : productAccessSearchText(p.name, {
+                : productAccessSearchText(p, {
                     directAccess: isPanelVersion,
                     includeManage: p.id === 'knowledge' && isPanelVersion,
                   }),
@@ -1445,10 +1704,36 @@ export default function RoleDetail() {
                   You can assign this role to team members via their profiles. To change roles
                   for a team member in this role, select their name to go to their profile.
                 </SidePanelHint>
+                {showScaledSummary && (
+                  <SummaryAccessWarning type="warning" role="note">
+                    <FilledWarningIcon />
+                    <Alert.Title>
+                      Access changed for {scaledPreview.affectedMemberCount} team member
+                      {scaledPreview.affectedMemberCount === 1 ? '' : 's'}
+                    </Alert.Title>
+                    <PreviewAccessAnchor
+                      href={`#/roles/${currentRoleId}/access-preview`}
+                      isUnderlined
+                      onClick={(e) => {
+                        e.preventDefault()
+                        navigate(`/roles/${currentRoleId}/access-preview`)
+                      }}
+                    >
+                      Preview team members access change
+                    </PreviewAccessAnchor>
+                    <SummaryWarningList>
+                      {scaledPreview.products.map((p) => (
+                        <li key={p.id}>{p.name}</li>
+                      ))}
+                    </SummaryWarningList>
+                  </SummaryAccessWarning>
+                )}
                 <MemberTable>
                   <MemberTableHead>Name</MemberTableHead>
                   {assignedMembers.map(m => {
-                    const changes = warningsFor(m)
+                    /* V2.5 uses the summary warning above the rows; Counselor is a
+                       seeded existing role with no opt-in preview banners. */
+                    const changes = (isCounselor || isScaledSimplified) ? [] : warningsFor(m)
                     return (
                     <MemberRow key={m.id}>
                       <MemberLink
@@ -1500,6 +1785,7 @@ export default function RoleDetail() {
           onClose={() => setFilterDrawerOpen(false)}
           value={permissionFilters}
           onApply={setPermissionFilters}
+          version={version}
         />
       )}
     </PageWrapper>

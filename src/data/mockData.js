@@ -6,11 +6,12 @@ const coreMembers = [
   { id: 'masked-agent', name: 'Masked Agent James Carter', role: 'Test API', email: 'masked.agent.james.carter@gmail.com', status: 'Active', brand: 'Rusteze', extraBrands: 0, group: 'Support', productAccess: 'Support, Knowledge, Chat', lastSignIn: 'Nov 14, 2025', aiAgentsAccess: 'No Access' },
 ]
 
-/* Seeded rosters — which members belong to each of the four seeded roles. They
-   drive both the Team members count in the roles table and the Team members side
-   panel on each role's page: Admin 6, Contributor 10, Subtle agent 15,
-   Advisor 20. The five core members above are deliberately not in any roster, so
-   the create-role → assign-member demo flow always starts from empty. */
+/* Seeded rosters — which members belong to each seeded role. They drive both
+   the Team members count in the roles table and the Team members side panel on
+   each role's page: Admin 6, Contributor 10, Subtle agent 15, Advisor 327
+   (scaled for V2.5 preview), Counselor 13. The five core members above are
+   deliberately not in any roster, so the create-role → assign-member demo
+   flow always starts from empty. */
 const roleRosters = {
   admin: [
     'Lightning McQueen', 'Sally Carrera', 'Doc Hudson', 'Ramone', 'Flo',
@@ -31,6 +32,13 @@ const roleRosters = {
     'Slinky Dog', 'Bo Peep', 'Mr. Potato Head', 'Mrs. Potato Head', 'Forky',
     'Ducky', 'Bunny', 'Duke Caboom', 'Gabby Gabby', 'Lotso Bear', 'Ken',
     'Barbie', 'Wheezy', 'RC',
+    /* Continue numbering after the 20 named members — Advisor Agent 21…327. */
+    ...Array.from({ length: 307 }, (_, i) => `Advisor Agent ${i + 21}`),
+  ],
+  counselor: [
+    'Joy', 'Sadness', 'Anger', 'Fear', 'Disgust', 'Bing Bong', 'Riley',
+    'Mom Andersen', 'Dad Andersen', 'Jangles', 'Rainbow Unicorn', 'Fritz',
+    'Lance Slashblade',
   ],
 }
 
@@ -39,22 +47,25 @@ const roleNames = {
   contributor: 'Contributor',
   'light-agent': 'Subtle agent',
   advisor: 'Advisor',
+  counselor: 'Counselor',
 }
 
-const slugify = (name) => name.toLowerCase().replace(/[^a-z]+/g, '-').replace(/-$/, '')
+const slugify = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
-/* Display labels for the role-level AI agents access values. */
+/* Display labels for role-level product access values (AI agents + products). */
 export const AI_ACCESS_LABELS = {
   no_access: 'No access',
   client_admin: 'Client admin',
   client_editor: 'Client editor',
   client_user: 'Client user',
+  admin: 'Admin',
+  agent: 'Agent',
+  reviewer: 'Reviewer',
 }
 
 /* V2 (Scaled access change): the role page gets an opt-in capsule per product,
    ordered like the team member profile's Roles and access table. AI agents
-   keeps its existing capsule; Quality assurance is plan-limited, so it renders
-   disabled with no opt-in. */
+   keeps its existing capsule; Quality assurance uses Admin / Agent / Reviewer. */
 export const PRODUCT_CAPSULES = [
   { id: 'support', name: 'Support' },
   { id: 'knowledge', name: 'Knowledge' },
@@ -62,14 +73,14 @@ export const PRODUCT_CAPSULES = [
   { id: 'voice', name: 'Voice' },
   { id: 'chat', name: 'Chat' },
   { id: 'ai-agents', name: 'AI agents' },
-  { id: 'qa', name: 'Quality assurance', disabled: true },
+  { id: 'qa', name: 'Quality assurance' },
 ]
 
 /* V3+: Chat / Sell / Gather are sunset — drop Chat from the product list. */
 export const PRODUCT_CAPSULES_V3 = PRODUCT_CAPSULES.filter((p) => p.id !== 'chat')
 
 /* The products that get their own opt-in capsule (not AI agents, which already
-   has one, and not the disabled QA capsule). */
+   has one). */
 export const RADIO_PRODUCTS = PRODUCT_CAPSULES.filter(p => !p.disabled && p.id !== 'ai-agents')
 export const RADIO_PRODUCTS_V3 = PRODUCT_CAPSULES_V3.filter(p => !p.disabled && p.id !== 'ai-agents')
 
@@ -89,22 +100,34 @@ const rosterMembers = Object.entries(roleRosters).flatMap(([roleId, names]) =>
     group: 'Support',
     productAccess: 'Support, Knowledge',
     lastSignIn: 'Never',
+    /* Advisor mixes levels so a single opt-in (e.g. No access) hits ~2/3, not all 327. */
     aiAgentsAccess: LEGACY_AI_ACCESS[i % 3],
   })),
 )
 
 export const teamMembers = [...coreMembers, ...rosterMembers]
 
-/* V2: each member's current access level per product, mixed across the roster
-   so a change to any product's level affects some members and not others. */
+/* V2: each member's current access level per product. Advisor uses a 3-way mix
+   (offset per product) so any chosen level affects ~218 members (≥217 for two
+   preview pages), not the full roster. */
 const ACCESS_ROTATION = ['No access', 'Client admin', 'Client editor', 'Client user']
+const ADVISOR_ACCESS_MIX = ['No access', 'Client admin', 'Client editor']
+const QA_ACCESS_ROTATION = ['Admin', 'Agent', 'Reviewer']
 export const memberProductAccess = Object.fromEntries(
   teamMembers.map((m, i) => [m.id, Object.fromEntries(
-    RADIO_PRODUCTS.map((p, pi) => [p.id, ACCESS_ROTATION[(i + pi) % ACCESS_ROTATION.length]]),
+    RADIO_PRODUCTS.map((p, pi) => {
+      if (p.id === 'qa') {
+        return [p.id, QA_ACCESS_ROTATION[(i + pi) % QA_ACCESS_ROTATION.length]]
+      }
+      if (m.role === 'Advisor') {
+        return [p.id, ADVISOR_ACCESS_MIX[(i + pi) % ADVISOR_ACCESS_MIX.length]]
+      }
+      return [p.id, ACCESS_ROTATION[(i + pi) % ACCESS_ROTATION.length]]
+    }),
   )]),
 )
 
-/* roleId -> member ids, as the four seeded roles start out. User-driven
+/* roleId -> member ids, as the seeded roles start out. User-driven
    assignments merge into this in AppContext. */
 export const defaultRoleAssignments = Object.fromEntries(
   Object.entries(roleRosters).map(([roleId, names]) => [roleId, names.map(slugify)]),
@@ -115,6 +138,7 @@ export const roles = [
   { id: 'contributor', name: 'Contributor', type: 'System', description: 'Can provide limited support' },
   { id: 'light-agent', name: 'Subtle agent', type: 'System', description: 'Can view and add private comments to tickets' },
   { id: 'advisor', name: 'Advisor', type: 'Custom', description: 'Can automate ticket workflows, manage channels and make private comments on tickets' },
+  { id: 'counselor', name: 'Counselor', type: 'Custom', description: 'Agent support when it gets complicated' },
 ]
 
 export const rolesAndAccessData = [
@@ -124,5 +148,5 @@ export const rolesAndAccessData = [
   { product: 'Voice', role: 'Agent', access: 'checkbox', checked: false, icon: 'voice' },
   { product: 'Chat', role: 'Agent', access: 'checkbox', checked: false, icon: 'chat' },
   { product: 'AI agents', role: 'Client admin', access: 'ai_agents', checked: true, icon: 'ai_agents' },
-  { product: 'Quality assurance', role: null, access: 'disabled', message: 'Subscription limit reached', icon: 'qa' },
+  { product: 'Quality assurance', role: 'Admin', access: 'yes', icon: 'qa' },
 ]

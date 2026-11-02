@@ -5,6 +5,23 @@
    Keep it concise: a short summary, then a few bullets per section. */
 export const versionNotes = [
   {
+    versionId: 'v4',
+    date: 'Oct 2026',
+    summary: 'PM talking-point concept for Workforce Management on Create role: one-way WFM role assignment opt-in, WFM role picker, and nested placeholder permission groups. Not finalized product scope.',
+    sections: [
+      {
+        title: 'Workforce Management capsule',
+        bullets: [
+          'New section heading peer to Settings/Products: Workforce Management (WFM)',
+          'WFM role assignment capsule: opt-in, irreversible alert, WFM role picker, then Tickets-style permission sections',
+          'After opt-in: Scheduling, Forecasting, and Team management appear as flat subsections below the picker',
+          'Illustrative WFM roles: Agent / Admin / Team Lead / Scheduler',
+          'Filter drawer Group list includes WFM alongside Settings and Products',
+        ],
+      },
+    ],
+  },
+  {
     versionId: 'v3.5',
     date: 'Sep 2026',
     summary: 'Same panel redesign and filter drawer as V3, but topic filters strip matching permissions out of capsules and hide empty ones.',
@@ -33,9 +50,32 @@ export const versionNotes = [
           'Chat removed (sunset); Knowledge settings + product access merged into one capsule',
           'Tickets → Security and privacy unchanged; Reporting stays in Settings',
           'Search permissions + Flora Filter drawer (scrim); filters show/hide whole capsules only',
-          'Pre-filter: Only available settings (clears to show all, including plan-limited QA)',
+          'Optional “Only available settings” filter (off by default; includes plan-limited QA until applied)',
           'Hidden search tags on capsules for discoverability',
           'Default version on load',
+        ],
+      },
+    ],
+  },
+  {
+    versionId: 'v2.5',
+    date: 'Sep 2026',
+    summary: 'Same product opt-ins as V2, but scales the team-member impact preview: one summary warning plus a work-area table instead of a banner on every name.',
+    sections: [
+      {
+        title: 'Team members panel',
+        bullets: [
+          'Single warning below the Team members explanation when opt-ins would change access',
+          'Title: Access changed for N team members; body lists affected products',
+          'Preview access change Anchor opens a work-area preview (not a modal)',
+        ],
+      },
+      {
+        title: 'Preview access change',
+        bullets: [
+          'Breadcrumbed screen: Roles › [role] › Preview access change',
+          'Table: team member (link to profile), product, current access, new access',
+          'Search, product filter, and pagination for large rosters',
         ],
       },
     ],

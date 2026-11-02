@@ -66,7 +66,6 @@ const RadioLabel = styled.label`
   gap: 8px;
   cursor: pointer;
   font-size: 14px;
-  color: #2f3941;
 `
 
 const RadioInput = styled.input.attrs({ type: 'radio' })`
@@ -83,16 +82,23 @@ const RadioTextWrap = styled.div`
   flex-direction: column;
 `
 
+/* Radio label — Flora fg/default. */
 const RadioTitle = styled.span`
   font-size: 14px;
   font-weight: 500;
-  color: #2f3941;
+  color: #2f3130;
 `
 
+/* Radio sub content — Flora fg/subtle. */
 const RadioHint = styled.span`
   font-size: 13px;
-  color: #68737d;
+  line-height: 20px;
   margin-top: 2px;
+  color: #646864;
+
+  && {
+    color: #646864;
+  }
 `
 
 const ManageBlock = styled.div`
@@ -110,36 +116,62 @@ const ManageTitle = styled.div`
 
 const ManageHint = styled.span`
   font-size: 12px;
-  color: #68737d;
+  color: #646864;
   display: block;
   margin: 4px 0 0 24px;
 `
 
-const optionsFor = (name) => [
+const QA_OPTIONS = [
   {
-    value: 'no_access',
-    label: 'No access',
-    description: `Users with this custom role can’t view or access ${name}. Selecting this option doesn’t hide ${name} from the product icons menu, but users can’t access the ${name} dashboard.`,
+    value: 'admin',
+    label: 'Admin',
+    description: 'Can see everything and manage all settings.',
   },
   {
-    value: 'client_admin',
-    label: 'Client admin',
-    description: `Users can manage all ${name} capabilities, including creating, editing, publishing, and deleting, configuring settings, and managing API integrations.`,
+    value: 'agent',
+    label: 'Agent',
+    description: 'Can view their own conversations, reply to feedback, and view their customer reviews. They have workspace-specific conversations and can view and edit data within their assigned workspaces only. They also have access to their own dashboard and can perform self-reviews, if enabled.',
   },
   {
-    value: 'client_editor',
-    label: 'Client editor',
-    description: `Users can create and edit ${name}, but can’t publish or delete, configure settings, or manage API integrations.`,
-  },
-  {
-    value: 'client_user',
-    label: 'Client user',
-    description: `Users can manage ${name} with restrictions on sensitive capabilities, such as no access to API integrations.`,
+    value: 'reviewer',
+    label: 'Reviewer',
+    description: 'Can view all reviews but cannot edit workspace settings. Can perform peer reviews.',
   },
 ]
 
-export const productAccessSearchText = (name, { directAccess = false, includeManage = false } = {}) =>
-  [
+const optionsFor = (product) => {
+  if (product.id === 'qa') return QA_OPTIONS
+  const name = product.name
+  return [
+    {
+      value: 'no_access',
+      label: 'No access',
+      description: `Users with this custom role can’t view or access ${name}. Selecting this option doesn’t hide ${name} from the product icons menu, but users can’t access the ${name} dashboard.`,
+    },
+    {
+      value: 'client_admin',
+      label: 'Client admin',
+      description: `Users can manage all ${name} capabilities, including creating, editing, publishing, and deleting, configuring settings, and managing API integrations.`,
+    },
+    {
+      value: 'client_editor',
+      label: 'Client editor',
+      description: `Users can create and edit ${name}, but can’t publish or delete, configure settings, or manage API integrations.`,
+    },
+    {
+      value: 'client_user',
+      label: 'Client user',
+      description: `Users can manage ${name} with restrictions on sensitive capabilities, such as no access to API integrations.`,
+    },
+  ]
+}
+
+export const productAccessSearchText = (product, { directAccess = false, includeManage = false } = {}) => {
+  const name = typeof product === 'string' ? product : product.name
+  const options = typeof product === 'string'
+    ? optionsFor({ id: '', name: product })
+    : optionsFor(product)
+  return [
     ...(directAccess
       ? []
       : [
@@ -147,11 +179,12 @@ export const productAccessSearchText = (name, { directAccess = false, includeMan
           `Opting in to ${name} moves settings to this page`,
           `${name} settings will only be available here in the roles and permissions pages.`,
         ]),
-    ...optionsFor(name).flatMap((o) => [o.label, o.description]),
+    ...options.flatMap((o) => [o.label, o.description]),
     ...(includeManage
       ? ['Manage Guide', 'manage articles', 'themes', 'settings', 'knowledge']
       : []),
   ].join(' ')
+}
 
 export default function ProductAccessSection({
   roleId,
@@ -163,25 +196,31 @@ export default function ProductAccessSection({
   const radioRef = useRef(null)
   const { getProductAccess, updateProductAccess } = useAppContext()
   const { optedIn, saved, accessLevel } = getProductAccess(roleId, product.id)
-  const options = optionsFor(product.name)
+  const options = optionsFor(product)
+  const defaultAccessLevel = options[0].value
   const showRadios = directAccess || optedIn || saved
 
   useEffect(() => {
     if (!directAccess) return
+    /* Panel versions show radios without an opt-in checkbox. Seed a baseline
+       so the radios render, but mark it saved so it does not invent pending
+       access-change warnings until the user picks a different level. */
     if (!accessLevel) {
       updateProductAccess(roleId, product.id, {
         optedIn: true,
-        accessLevel: 'no_access',
+        saved: true,
+        accessLevel: defaultAccessLevel,
       })
     } else if (!optedIn) {
-      updateProductAccess(roleId, product.id, { optedIn: true })
+      updateProductAccess(roleId, product.id, { optedIn: true, saved: true })
     }
-  }, [directAccess, accessLevel, optedIn, roleId, product.id, updateProductAccess])
+  }, [directAccess, accessLevel, optedIn, roleId, product.id, defaultAccessLevel, updateProductAccess])
 
   const handleOptIn = (e) => {
     updateProductAccess(roleId, product.id, {
       optedIn: e.target.checked,
-      ...(e.target.checked && !accessLevel ? { accessLevel: 'no_access' } : {}),
+      saved: false,
+      ...(e.target.checked && !accessLevel ? { accessLevel: defaultAccessLevel } : {}),
     })
     if (e.target.checked) {
       setTimeout(() => {
@@ -221,6 +260,7 @@ export default function ProductAccessSection({
                 checked={accessLevel === option.value}
                 onChange={() => updateProductAccess(roleId, product.id, {
                   optedIn: true,
+                  saved: false,
                   accessLevel: option.value,
                 })}
               />

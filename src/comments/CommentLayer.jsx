@@ -17,6 +17,7 @@ import {
   setAuthor,
   setResolved,
 } from './store'
+import { onCommentAt } from '../inspect/bridge'
 
 /**
  * Comment mode: a Figma-style annotation layer over the prototype.
@@ -111,6 +112,19 @@ const ToggleButton = styled.button`
       return props.$inline ? '#555e66' : '#dcdcda'
     }};
     color: ${(props) => (props.$inline ? '#ffffff' : undefined)};
+  }
+
+  /* Mint Inspect console: dark ink for unreadably light greys on Mint/500. */
+  header[data-inspect-console='true'] & {
+    border-color: ${(props) => (props.$active ? '#4d7fd4' : 'rgba(14, 38, 26, 0.4)')};
+    background-color: ${(props) => (props.$active ? '#406cc4' : 'transparent')};
+    color: ${(props) => (props.$active ? '#ffffff' : '#0e261a')};
+
+    &:hover {
+      background-color: ${(props) => (props.$active ? '#284173' : 'rgba(14, 38, 26, 0.12)')};
+      border-color: ${(props) => (props.$active ? '#4d7fd4' : '#0e261a')};
+      color: ${(props) => (props.$active ? '#ffffff' : '#0e261a')};
+    }
   }
 `
 
@@ -435,7 +449,7 @@ const Banner = styled.div`
 /* How far in from the left edge the toggle sits, measured rather than assumed.
  *
  * The button lives bottom-left, and most of these prototypes put a global nav rail
- * there — 56px in the globalnav template, wider in an expanded nav. Hard-coding
+ * there — 56px in the product icon rail, wider in an expanded nav. Hard-coding
  * that would make the button cover a nav item in any prototype whose rail differs,
  * and this file is meant to drop in unedited.
  *
@@ -527,6 +541,27 @@ export default function CommentLayer({
       cancelled = true
     }
   }, [])
+
+  /* Signal Comment on/off so Inspect can ⌘-click → pin when both modes run. */
+  useEffect(() => {
+    if (isOn) document.documentElement.dataset.commentMode = 'true'
+    else delete document.documentElement.dataset.commentMode
+    return () => {
+      delete document.documentElement.dataset.commentMode
+    }
+  }, [isOn])
+
+  /* Inspect owns the WorkArea catcher when both modes are on; it asks us to pin. */
+  useEffect(() => {
+    if (!isOn) return undefined
+    return onCommentAt((clientX, clientY) => {
+      const anchor = describeAnchor(clientX, clientY, context)
+      if (!anchor) return
+      setOpenId(null)
+      setDraftBody('')
+      setDraft({ anchor })
+    })
+  }, [isOn, context])
 
   /* Pins are positioned from live element geometry, so anything that can move an
      element has to trigger a recompute: scrolling, resizing the window, and the
@@ -655,12 +690,23 @@ export default function CommentLayer({
   }, [openComment, tick])
 
   const onCatcherClick = (event) => {
+    /* When Inspect is also on, its catcher sits above this one. Plain clicks select
+       for Inspect; only ⌘/Ctrl+click is forwarded here via the bridge. If a plain
+       click somehow reaches us while Inspect is on, ignore it. */
+    if (document.documentElement.dataset.inspectMode === 'true') {
+      if (!(event.metaKey || event.ctrlKey)) return
+    }
+
     /* Modifier-click passes the click through to the prototype instead of
        dropping a pin, so a reviewer can drill into the tree — and therefore
        comment on a node three levels down — without toggling comment mode off and
        on again at every step. Implemented by hiding the catcher for the duration
-       of one synthesised click on whatever is underneath. */
-    if (event.metaKey || event.ctrlKey || event.altKey) {
+       of one synthesised click on whatever is underneath.
+       Exception: with Inspect on, modifier-click means "place a comment". */
+    if (
+      (event.metaKey || event.ctrlKey || event.altKey) &&
+      document.documentElement.dataset.inspectMode !== 'true'
+    ) {
       const beneath = document
         .elementsFromPoint(event.clientX, event.clientY)
         .find((el) => getRoot()?.contains(el))

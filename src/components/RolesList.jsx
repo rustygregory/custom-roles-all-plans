@@ -16,10 +16,12 @@ const PageHeader = styled.div`
   margin-bottom: 24px;
 `
 
+/* Flora Typography Large / Default — 26/32, fg/default (neutralHue.900). */
 const Title = styled.h1`
-  font-size: 24px;
-  font-weight: 600;
-  color: #2f3941;
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 400;
+  color: #2f3130;
   margin: 0 0 4px;
 `
 
@@ -114,6 +116,11 @@ const NameCell = styled.span`
   color: #2f3941;
 `
 
+const Hint = styled.span`
+  color: #68737d;
+  font-weight: 400;
+`
+
 const DescCell = styled.span`
   color: #49545c;
 `
@@ -179,7 +186,12 @@ export default function RolesList() {
         <tbody>
           {roles.map(role => (
             <ClickableRow key={role.id} onClick={() => navigate(`/roles/${role.id}`)}>
-              <Td><NameCell>{role.name}</NameCell></Td>
+              <Td>
+                <NameCell>
+                  {role.name}
+                  {role.id === 'counselor' && <Hint> (Error state here)</Hint>}
+                </NameCell>
+              </Td>
               <Td>{role.type && <TypeTag $system={role.type === 'System'}>{role.type}</TypeTag>}</Td>
               <Td><CountCell>{memberCount(role)}</CountCell></Td>
               <Td><DescCell>{role.description}</DescCell></Td>

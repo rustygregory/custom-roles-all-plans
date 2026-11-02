@@ -1,11 +1,11 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { roles as defaultRoles, defaultRoleAssignments } from '../data/mockData'
 
 const AppContext = createContext()
 
 export function AppProvider({ children }) {
-  // Prototype-bar version. V3 (panel redesign) is the default.
-  const [version, setVersion] = useState('v3')
+  // Prototype-bar version. V4 (WFM concept) is the default for this review.
+  const [version, setVersion] = useState('v4')
 
   /* AI agents opt-in is per role: roleId -> { optedIn, saved, accessLevel }.
      Every role starts opted out — opting in on one role must not change what
@@ -29,15 +29,38 @@ export function AppProvider({ children }) {
   // Which role has AI agents migrated into it (only its assigned members are affected)
   const [aiAgentsRoleId, setAiAgentsRoleId] = useState(null)
 
-  // roleId -> array of member ids assigned to that role. The four seeded roles
-  // start with their rosters; user-driven assignments merge in.
+  // roleId -> array of member ids assigned to that role. Seeded roles start
+  // with their rosters; user-driven assignments merge in. Re-sync seeded
+  // rosters whenever mock defaults change so the roles table count and the
+  // role-detail side panel always match.
   const [roleAssignments, setRoleAssignments] = useState(defaultRoleAssignments)
+  useEffect(() => {
+    setRoleAssignments((prev) => {
+      const next = { ...prev }
+      for (const [roleId, ids] of Object.entries(defaultRoleAssignments)) {
+        next[roleId] = ids
+      }
+      return next
+    })
+  }, [defaultRoleAssignments])
 
   /* V2 product opt-ins: roleId -> productId -> { optedIn, saved, accessLevel },
      the same shape the AI agents capsule uses. Missing entries fall back to
      opted-out defaults, so untouched roles need no state. */
   const PRODUCT_ACCESS_DEFAULTS = { optedIn: false, saved: false, accessLevel: null }
   const [productAccessByRole, setProductAccessByRole] = useState({})
+
+  /* V3 auto-inits product radios as opted-in drafts. Clear those when switching
+     versions so V2 / V2.5 don't inherit pending access-change warnings. */
+  const versionBootRef = useRef(true)
+  useEffect(() => {
+    if (versionBootRef.current) {
+      versionBootRef.current = false
+      return
+    }
+    setAiAgentsByRole({})
+    setProductAccessByRole({})
+  }, [version])
 
   const getProductAccess = (roleId, productId) =>
     productAccessByRole[roleId]?.[productId] || PRODUCT_ACCESS_DEFAULTS

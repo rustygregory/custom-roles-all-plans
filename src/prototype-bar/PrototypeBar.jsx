@@ -19,6 +19,8 @@ import VersionNotesPanel from './VersionNotesPanel'
  *   versionNotes          [{ versionId, date, summary, sections }] — the living
  *                          changelog behind the "Version notes" button
  *   commentSlotRef        callback ref for a CommentLayer portal target
+ *   inspectSlotRef        callback ref for an InspectLayer portal target
+ *   inspectActive         when true, bar uses Mint/500 so Inspect mode is obvious
  */
 
 export const BAR_HEIGHT = 48
@@ -26,6 +28,14 @@ export const BAR_HEIGHT = 48
 /* Above the comment layer (9000–9003) so the menu stays clickable with comment
    mode on — the bar is also where the way OUT of comment mode is. */
 const MENU_Z = 9500
+
+/* Flora palette mint.500 — Inspect console signal.
+   Ink colors are dark mint/near-black so title, meta, and controls stay readable. */
+const MINT_500 = '#01b15c'
+const MINT_INK = '#0e261a'
+const MINT_INK_MUTED = '#143726'
+const MINT_BORDER = 'rgba(14, 38, 26, 0.4)'
+const MINT_CONTROL_HOVER = 'rgba(14, 38, 26, 0.12)'
 
 const Bar = styled.header`
   position: relative;
@@ -37,10 +47,11 @@ const Bar = styled.header`
   gap: 16px;
   height: ${BAR_HEIGHT}px;
   padding: 0 16px;
-  background-color: #1a1f24;
-  color: #ffffff;
+  background-color: ${(p) => (p.$inspectActive ? MINT_500 : '#1a1f24')};
+  color: ${(p) => (p.$inspectActive ? MINT_INK : '#ffffff')};
   font-family: inherit;
   user-select: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
 `
 
 const Identity = styled.div`
@@ -54,7 +65,7 @@ const Identity = styled.div`
 const Title = styled.span`
   font-size: 13px;
   font-weight: 600;
-  color: #ffffff;
+  color: ${(p) => (p.$inspectActive ? MINT_INK : '#ffffff')};
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -62,17 +73,31 @@ const Title = styled.span`
 
 const Pipe = styled.span`
   flex-shrink: 0;
-  color: #363d44;
+  color: ${(p) => (p.$inspectActive ? MINT_BORDER : '#363d44')};
   font-size: 13px;
   line-height: 1;
 `
 
 const Meta = styled.span`
   flex-shrink: 0;
-  color: #7c8590;
+  color: ${(p) => (p.$inspectActive ? MINT_INK_MUTED : '#7c8590')};
   font-size: 12px;
   white-space: nowrap;
 `
+
+/* Day only, abbreviated month (not all-caps), no ordinal: "Oct 5, 2026". */
+const MONTHS = [
+  null,
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+]
+
+function formatUpdatedDate(isoDate) {
+  if (typeof isoDate !== 'string') return null
+  const [y, m, d] = isoDate.split('-').map(Number)
+  if (!y || !m || !d || !MONTHS[m]) return null
+  return `${MONTHS[m]} ${d}, ${y}`
+}
 
 const Controls = styled.div`
   display: flex;
@@ -91,19 +116,25 @@ const Trigger = styled.button`
   gap: 8px;
   height: 28px;
   padding: 0 10px;
-  border: 1px solid ${(p) => (p.$open ? '#555e66' : '#363d44')};
+  border: 1px solid ${(p) => {
+    if (p.$inspectActive) return p.$open ? MINT_INK : MINT_BORDER
+    return p.$open ? '#555e66' : '#363d44'
+  }};
   border-radius: 4px;
-  background: ${(p) => (p.$open ? '#262c32' : 'transparent')};
-  color: #c8cdd0;
+  background: ${(p) => {
+    if (p.$inspectActive) return p.$open ? MINT_CONTROL_HOVER : 'transparent'
+    return p.$open ? '#262c32' : 'transparent'
+  }};
+  color: ${(p) => (p.$inspectActive ? MINT_INK : '#c8cdd0')};
   font-family: inherit;
   font-size: 13px;
   white-space: nowrap;
   cursor: pointer;
 
   &:hover {
-    background-color: #262c32;
-    border-color: #555e66;
-    color: #ffffff;
+    background-color: ${(p) => (p.$inspectActive ? MINT_CONTROL_HOVER : '#262c32')};
+    border-color: ${(p) => (p.$inspectActive ? MINT_INK : '#555e66')};
+    color: ${(p) => (p.$inspectActive ? MINT_INK : '#ffffff')};
   }
 `
 
@@ -120,7 +151,7 @@ const TriggerLabel = styled.span`
 
 const TriggerDesc = styled.span`
   font-weight: 400;
-  color: #7c8590;
+  color: ${(p) => (p.$inspectActive ? MINT_INK_MUTED : '#7c8590')};
   font-size: 12px;
 `
 
@@ -226,19 +257,25 @@ const NotesButton = styled.button`
   gap: 6px;
   height: 28px;
   padding: 0 10px;
-  border: 1px solid ${(p) => (p.$open ? '#555e66' : '#363d44')};
+  border: 1px solid ${(p) => {
+    if (p.$inspectActive) return p.$open ? MINT_INK : MINT_BORDER
+    return p.$open ? '#555e66' : '#363d44'
+  }};
   border-radius: 4px;
-  background: ${(p) => (p.$open ? '#262c32' : 'transparent')};
-  color: #c8cdd0;
+  background: ${(p) => {
+    if (p.$inspectActive) return p.$open ? MINT_CONTROL_HOVER : 'transparent'
+    return p.$open ? '#262c32' : 'transparent'
+  }};
+  color: ${(p) => (p.$inspectActive ? MINT_INK : '#c8cdd0')};
   font-family: inherit;
   font-size: 13px;
   white-space: nowrap;
   cursor: pointer;
 
   &:hover {
-    background-color: #262c32;
-    border-color: #555e66;
-    color: #ffffff;
+    background-color: ${(p) => (p.$inspectActive ? MINT_CONTROL_HOVER : '#262c32')};
+    border-color: ${(p) => (p.$inspectActive ? MINT_INK : '#555e66')};
+    color: ${(p) => (p.$inspectActive ? MINT_INK : '#ffffff')};
   }
 `
 
@@ -263,6 +300,8 @@ export default function PrototypeBar({
   versionLabel = 'Version',
   versionNotes,
   commentSlotRef,
+  inspectSlotRef,
+  inspectActive = false,
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [notesOpen, setNotesOpen] = useState(false)
@@ -272,6 +311,11 @@ export default function PrototypeBar({
   const selected = versions?.find((v) => v.id === versionId)
   const activeVersions = versions?.filter((v) => !v.archived) ?? []
   const archivedVersions = versions?.filter((v) => v.archived) ?? []
+  const updatedLabel =
+    typeof __BUILD_DATE__ !== 'undefined' ? formatUpdatedDate(__BUILD_DATE__) : null
+  const metaText = [meta, updatedLabel ? `Updated ${updatedLabel}` : null]
+    .filter(Boolean)
+    .join(' · ')
 
   /* Close on outside click and Escape. Capture phase so comment mode's
      click-catcher (which stops propagation) can't swallow the close. */
@@ -309,13 +353,13 @@ export default function PrototypeBar({
   }, [notesOpen])
 
   return (
-    <Bar>
+    <Bar $inspectActive={inspectActive} data-inspect-console={inspectActive ? 'true' : undefined}>
       <Identity>
-        <Title>{title}</Title>
-        {meta && (
+        <Title $inspectActive={inspectActive}>{title}</Title>
+        {metaText && (
           <>
-            <Pipe aria-hidden="true">|</Pipe>
-            <Meta>{meta}</Meta>
+            <Pipe $inspectActive={inspectActive} aria-hidden="true">|</Pipe>
+            <Meta $inspectActive={inspectActive}>{metaText}</Meta>
           </>
         )}
       </Identity>
@@ -326,13 +370,16 @@ export default function PrototypeBar({
             <Trigger
               type="button"
               $open={isOpen}
+              $inspectActive={inspectActive}
               onClick={() => { setNotesOpen(false); setIsOpen((v) => !v) }}
               aria-expanded={isOpen}
               aria-haspopup="listbox"
             >
               <TriggerContent>
                 <TriggerLabel>{selected?.label ?? versionLabel}</TriggerLabel>
-                {selected?.description && <TriggerDesc>{selected.description}</TriggerDesc>}
+                {selected?.description && (
+                  <TriggerDesc $inspectActive={inspectActive}>{selected.description}</TriggerDesc>
+                )}
               </TriggerContent>
               <CaretIcon $open={isOpen} />
             </Trigger>
@@ -394,6 +441,7 @@ export default function PrototypeBar({
             <NotesButton
               type="button"
               $open={notesOpen}
+              $inspectActive={inspectActive}
               onClick={() => { setIsOpen(false); setNotesOpen((v) => !v) }}
               aria-expanded={notesOpen}
               aria-haspopup="dialog"
@@ -417,7 +465,8 @@ export default function PrototypeBar({
           </NotesWrapper>
         )}
 
-        {/* CommentLayer portals its toggle button into this slot. */}
+        {/* InspectLayer / CommentLayer portal their toggles into these slots. */}
+        <CommentSlot ref={inspectSlotRef} />
         <CommentSlot ref={commentSlotRef} />
       </Controls>
     </Bar>

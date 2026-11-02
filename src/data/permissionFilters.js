@@ -10,14 +10,22 @@ export const FILTER_TOPICS = [
   { id: 'reporting', label: 'Reporting' },
   { id: 'knowledge', label: 'Knowledge' },
   { id: 'ai-agents', label: 'AI agents' },
+  { id: 'wfm', label: 'Workforce Management' },
 ]
 
 export const FILTER_GROUPS = [
   { id: 'settings', label: 'Settings' },
   { id: 'products', label: 'Products' },
+  { id: 'wfm', label: 'WFM' },
 ]
 
-/* Capsule-level metadata. `available: false` is plan-limited (e.g. QA). */
+/** Groups shown in the filter drawer for a given prototype version. */
+export function filterGroupsForVersion(version) {
+  if (version === 'v4') return FILTER_GROUPS
+  return FILTER_GROUPS.filter((g) => g.id !== 'wfm')
+}
+
+/* Capsule-level metadata. `available: false` is plan-limited. */
 export const CAPSULE_META = {
   tickets: {
     group: 'settings',
@@ -91,13 +99,18 @@ export const CAPSULE_META = {
   },
   qa: {
     group: 'products',
-    available: false,
+    available: true,
     tags: ['reporting', 'workflow'],
+  },
+  'wfm-role-assignment': {
+    group: 'wfm',
+    available: true,
+    tags: ['wfm', 'workflow', 'user-management', 'reporting'],
   },
 }
 
 export const DEFAULT_PERMISSION_FILTERS = {
-  availableOnly: true,
+  availableOnly: false,
   groups: [],
   topics: [],
 }

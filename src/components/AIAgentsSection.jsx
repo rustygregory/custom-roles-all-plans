@@ -64,7 +64,6 @@ const RadioLabel = styled.label`
   gap: 8px;
   cursor: pointer;
   font-size: 14px;
-  color: #2f3941;
 `
 
 const RadioInput = styled.input.attrs({ type: 'radio' })`
@@ -81,16 +80,23 @@ const RadioTextWrap = styled.div`
   flex-direction: column;
 `
 
+/* Radio label — Flora fg/default. */
 const RadioTitle = styled.span`
   font-size: 14px;
   font-weight: 500;
-  color: #2f3941;
+  color: #2f3130;
 `
 
+/* Radio sub content — Flora fg/subtle. */
 const RadioHint = styled.span`
   font-size: 13px;
-  color: #68737d;
+  line-height: 20px;
   margin-top: 2px;
+  color: #646864;
+
+  && {
+    color: #646864;
+  }
 `
 
 const AI_AGENTS_OPTIONS = [
@@ -134,16 +140,20 @@ export default function AIAgentsSection({ roleId, query, directAccess = false })
 
   useEffect(() => {
     if (!directAccess) return
+    /* Panel versions show radios without an opt-in checkbox. Seed a baseline
+       so the radios render, but mark it saved so it does not invent pending
+       access-change warnings until the user picks a different level. */
     if (!accessLevel) {
-      updateAiAgentsState(roleId, { optedIn: true, accessLevel: 'no_access' })
+      updateAiAgentsState(roleId, { optedIn: true, saved: true, accessLevel: 'no_access' })
     } else if (!optedIn) {
-      updateAiAgentsState(roleId, { optedIn: true })
+      updateAiAgentsState(roleId, { optedIn: true, saved: true })
     }
   }, [directAccess, accessLevel, optedIn, roleId, updateAiAgentsState])
 
   const handleOptIn = (e) => {
     updateAiAgentsState(roleId, {
       optedIn: e.target.checked,
+      saved: false,
       // Default to No Access on first opt-in.
       ...(e.target.checked && !accessLevel ? { accessLevel: 'no_access' } : {}),
     })
@@ -185,6 +195,7 @@ export default function AIAgentsSection({ roleId, query, directAccess = false })
                 checked={accessLevel === option.value}
                 onChange={() => updateAiAgentsState(roleId, {
                   optedIn: true,
+                  saved: false,
                   accessLevel: option.value,
                 })}
               />

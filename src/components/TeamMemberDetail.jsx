@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import styled from 'styled-components'
 import { Button } from '@zendeskgarden/react-buttons'
 import { Notification } from '@zendeskgarden/react-notifications'
 import Breadcrumbs from './Breadcrumbs'
 import RolesAndAccessTab from './RolesAndAccessTab'
 import { teamMembers } from '../data/mockData'
+import { useAppContext } from '../context/AppContext'
 
 const PageWrapper = styled.div`
   display: flex;
@@ -128,9 +129,39 @@ const AccountPlaceholder = styled.div`
 export default function TeamMemberDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  const { roles } = useAppContext()
   const [activeTab, setActiveTab] = useState('roles')
   const [showToast, setShowToast] = useState(false)
   const member = teamMembers.find(m => m.id === id) || teamMembers[0]
+
+  const fromRoleId = location.state?.fromRoleId
+  const fromAccessPreview = Boolean(location.state?.fromAccessPreview)
+  const fromRole = fromRoleId ? roles.find((r) => r.id === fromRoleId) : null
+
+  const breadcrumbItems = fromAccessPreview && fromRole
+    ? [
+        { label: 'People' },
+        { label: 'Team' },
+        { label: 'Roles', path: '/roles' },
+        { label: fromRole.name, path: `/roles/${fromRoleId}` },
+        { label: 'Preview team members access change', path: `/roles/${fromRoleId}/access-preview` },
+        { label: member.name },
+      ]
+    : fromRole
+      ? [
+          { label: 'People' },
+          { label: 'Team' },
+          { label: 'Roles', path: '/roles' },
+          { label: fromRole.name, path: `/roles/${fromRoleId}` },
+          { label: member.name },
+        ]
+      : [
+          { label: 'People' },
+          { label: 'Team' },
+          { label: 'Team members', path: '/team-members' },
+          { label: member.name },
+        ]
 
   const handleSave = () => {
     setShowToast(true)
@@ -149,12 +180,7 @@ export default function TeamMemberDetail() {
       )}
       <ScrollArea>
         <Container>
-      <Breadcrumbs items={[
-        { label: 'People' },
-        { label: 'Team' },
-        { label: 'Team members', path: '/team-members' },
-        { label: member.name },
-      ]} />
+      <Breadcrumbs items={breadcrumbItems} />
 
       <Header>
         <Title>{member.name}</Title>
@@ -191,7 +217,19 @@ export default function TeamMemberDetail() {
       </ScrollArea>
 
       <BottomBar>
-        <Button onClick={() => navigate('/team-members')}>Cancel</Button>
+        <Button
+          onClick={() => {
+            if (fromAccessPreview && fromRoleId) {
+              navigate(`/roles/${fromRoleId}/access-preview`)
+            } else if (fromRoleId) {
+              navigate(`/roles/${fromRoleId}`)
+            } else {
+              navigate('/team-members')
+            }
+          }}
+        >
+          Cancel
+        </Button>
         <Button isPrimary onClick={handleSave}>Save</Button>
       </BottomBar>
     </PageWrapper>
