@@ -1,46 +1,71 @@
 import styled from 'styled-components'
+import { getColor } from '@zendeskgarden/react-theming'
 import { highlightText, deepHighlight, extractText } from '../utils/highlight'
 import { FloraExclamationCircle } from './FloraValidationMessage'
 
-/* A permission group as a collapsible card. White with a hairline border — the
-   capsule from the roles page redesign: the header alone (title, description,
-   chevron) is the whole click target, so the radio and checkbox rows inside the
-   body can be used without collapsing the card under the cursor. */
-const Card = styled.section`
+/*
+ * Flora Labs Accordion well / Capsule — matches Ticket forms migration.
+ * Closed: 82px tall, bg/default. Open: header on bg/subtle; white body with
+ * the same 12px corners and no header/body division line.
+ * Default max width 726px (Ticket forms V4 content column).
+ */
+const Card = styled.section.attrs({
+  'data-inspect-name': 'Accordion well',
+})`
   box-sizing: border-box;
-  max-width: ${p => p.$maxWidth || 630}px;
-  border: 1px solid #d8dcde;
-  border-radius: 8px;
-  background: #fff;
+  width: 100%;
+  max-width: ${p => p.$maxWidth || 726}px;
+  border: 1px solid ${p => getColor({ theme: p.theme, variable: 'border.subtle' })};
+  border-radius: 12px;
+  background: ${p =>
+    getColor({
+      theme: p.theme,
+      variable: p.$expanded ? 'background.subtle' : 'background.default',
+    })};
+  overflow: hidden;
   margin-bottom: 12px;
+  /* Closed default height; grow when header carries an error message. */
+  ${p =>
+    !p.$expanded &&
+    !p.$hasError &&
+    `
+    height: 82px;
+  `}
 `
 
-const Header = styled.button.attrs({ type: 'button' })`
+const CardHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  width: 100%;
-  padding: 14px 16px;
-  border: none;
-  background: none;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-  border-radius: 8px;
+  padding: ${p => (p.$expanded || p.$hasError ? '20px' : '0 20px')};
+  box-sizing: border-box;
+  height: ${p => (p.$expanded || p.$hasError ? 'auto' : '82px')};
+  min-height: 82px;
+  background: transparent;
 `
 
-const HeaderText = styled.div`
+const HeaderMain = styled.button.attrs({ type: 'button' })`
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 2px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 `
 
-/* Flora Typography Medium / Bold — fg/default. */
 const HeaderTitle = styled.span`
   font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
-  color: #2f3130;
+  color: ${p => getColor({ theme: p.theme, variable: 'foreground.default' })};
 `
 
 /* Capsule sub content — Flora Medium / Default 14/20, fg/subtle. */
@@ -48,7 +73,7 @@ const HeaderDescription = styled.span`
   font-size: 14px;
   line-height: 20px;
   font-weight: 400;
-  color: #646864;
+  color: ${p => getColor({ theme: p.theme, variable: 'foreground.subtle' })};
 `
 
 /* Flora Field.Message error treatment in the capsule header — visible when
@@ -62,7 +87,7 @@ const HeaderError = styled.span`
   font-size: 12px;
   font-weight: 400;
   line-height: 16px;
-  color: #c63f46;
+  color: ${p => getColor({ theme: p.theme, variable: 'foreground.danger' })};
 `
 
 const HeaderErrorIcon = styled.span`
@@ -76,21 +101,73 @@ const HeaderErrorText = styled.span`
   padding-block: 2px;
 `
 
-/* Flora Icons chevron — fg/subtle (neutralHue.700), vertically centered in header. */
-const Chevron = styled.svg`
+const ExpandButton = styled.button.attrs({ type: 'button' })`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: ${p => getColor({ theme: p.theme, variable: 'foreground.subtle' })};
+  cursor: pointer;
   flex-shrink: 0;
-  color: #646864;
-  transform: ${p => (p.$open ? 'rotate(180deg)' : 'none')};
+
+  &:hover,
+  &:active,
+  &:focus {
+    color: ${p => getColor({ theme: p.theme, variable: 'foreground.subtle' })};
+  }
+
+  svg {
+    display: block;
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+    color: ${p => getColor({ theme: p.theme, variable: 'foreground.subtle' })};
+    transform: ${p => (p.$open ? 'rotate(180deg)' : 'none')};
+    transition: transform 120ms ease;
+  }
 `
 
-/* 24px between permission sections (PermissionBlock children). */
-const Body = styled.div`
+/* Open panel — same 12px radii as capsule; no top division line.
+   24px between permission sections (PermissionBlock children). */
+const CardBody = styled.div`
   display: flex;
   flex-direction: column;
   gap: 24px;
-  padding: 20px 16px 16px;
-  border-top: 1px solid #e9ebed;
+  margin: 0;
+  padding: 20px;
+  box-sizing: border-box;
+  background: ${p => getColor({ theme: p.theme, variable: 'background.default' })};
+  border-radius: 12px;
+  border-top: none;
 `
+
+/** Flora Icons chevron-down — 20px (Ticket forms / Flora Accordion well). */
+function ChevronDownIcon({ size = 20 }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M2.74408 6.91058C3.06952 6.58515 3.59715 6.58515 3.92259 6.91058L9.41075 12.3988C9.73617 12.7242 10.2638 12.7242 10.5893 12.3988L16.0774 6.91058C16.4028 6.58515 16.9305 6.58515 17.2559 6.91058C17.5813 7.23602 17.5813 7.76365 17.2559 8.0891L11.7677 13.5773C10.7915 14.5536 9.20858 14.5536 8.23225 13.5773L2.74408 8.0891C2.41864 7.76365 2.41864 7.23602 2.74408 6.91058Z"
+      />
+    </svg>
+  )
+}
 
 /* `query` is the role page's settings search: a capsule whose title,
    description, or body contains the query opens itself and highlights the
@@ -114,13 +191,22 @@ export default function SettingsCapsule({
       .includes(q.toLowerCase())
   const isOpen = open || hasHit
   const errors = Number(errorCount) || 0
+  const hasError = errors > 0
+  const expandLabel = isOpen ? `Collapse ${title}` : `Expand ${title}`
+
   return (
-    <Card $maxWidth={maxWidth}>
-      <Header onClick={onToggle} aria-expanded={isOpen}>
-        <HeaderText>
+    <Card $maxWidth={maxWidth} $expanded={isOpen} $hasError={hasError}>
+      <CardHeader $expanded={isOpen} $hasError={hasError}>
+        <HeaderMain
+          onClick={onToggle}
+          aria-expanded={isOpen}
+          aria-label={expandLabel}
+        >
           <HeaderTitle>{highlightText(title, q)}</HeaderTitle>
-          {description && <HeaderDescription>{highlightText(description, q)}</HeaderDescription>}
-          {errors > 0 && (
+          {description && (
+            <HeaderDescription>{highlightText(description, q)}</HeaderDescription>
+          )}
+          {hasError && (
             <HeaderError>
               <HeaderErrorIcon>
                 <FloraExclamationCircle />
@@ -130,12 +216,17 @@ export default function SettingsCapsule({
               </HeaderErrorText>
             </HeaderError>
           )}
-        </HeaderText>
-        <Chevron $open={isOpen} width="12" height="8" viewBox="0 0 12 8" fill="none" aria-hidden="true">
-          <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </Chevron>
-      </Header>
-      {isOpen && <Body>{deepHighlight(children, q)}</Body>}
+        </HeaderMain>
+        <ExpandButton
+          $open={isOpen}
+          aria-expanded={isOpen}
+          aria-label={expandLabel}
+          onClick={onToggle}
+        >
+          <ChevronDownIcon size={20} />
+        </ExpandButton>
+      </CardHeader>
+      {isOpen && <CardBody>{deepHighlight(children, q)}</CardBody>}
     </Card>
   )
 }

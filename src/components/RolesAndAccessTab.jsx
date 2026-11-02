@@ -27,7 +27,7 @@ const Th = styled.th`
 const Td = styled.td`
   padding: 20px 16px;
   font-size: 14px;
-  color: #2f3941;
+  color: #2f3130;
   border-bottom: 1px solid #e9ebed;
   vertical-align: middle;
 `
@@ -58,7 +58,7 @@ const Select = styled.select`
   border: 1px solid #d8dcde;
   border-radius: 4px;
   font-size: 14px;
-  color: #2f3941;
+  color: #2f3130;
   background: #fff;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2368737D' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -72,7 +72,7 @@ const Checkbox = styled.input.attrs({ type: 'checkbox' })`
   width: 18px;
   height: 18px;
   cursor: pointer;
-  accent-color: #2f3941;
+  accent-color: #2f3130;
 `
 
 const InfoIcon = styled.span`

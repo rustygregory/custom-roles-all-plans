@@ -1,72 +1,64 @@
 import styled from 'styled-components'
 import { useNavigate } from 'react-router-dom'
+import { Breadcrumb } from '@zendeskgarden/react-breadcrumbs'
+import { Anchor } from '@zendeskgarden/react-buttons'
+import { getColor } from '@zendeskgarden/react-theming'
 
-/* Flora Typography Medium / Default — 14/20 */
-const BreadcrumbContainer = styled.nav`
-  display: flex;
-  align-items: center;
-  gap: 4px;
+/* 8px between breadcrumb and page title */
+const BreadcrumbWrap = styled.div`
   margin-bottom: 8px;
-  font-size: 14px;
-  line-height: 20px;
-  font-weight: 400;
 `
 
-/* fg/primary — primaryHue.700 */
-const BreadcrumbLink = styled.span`
-  color: #406cc4;
-  text-decoration: none;
-  cursor: pointer;
-  font-size: 14px;
-  line-height: 20px;
-  font-weight: 400;
+/* Flora Core Breadcrumb parents = Anchor → fg/primary */
+const BreadcrumbAnchor = styled(Anchor).attrs({
+  isUnderlined: false,
+  'data-inspect-token-color': 'fg/primary',
+})``
 
-  &:hover {
-    color: #284173;
-    text-decoration: underline;
-  }
-
-  &:active {
-    color: #1f335a;
-  }
+/*
+ * Non-navigable ancestor (no path): Admin Center uses fg/subtle.
+ * Explicit token avoids Garden non-current inherit → fg/default.
+ */
+const AncestorText = styled.span.attrs({ 'data-inspect-token-color': 'fg/subtle' })`
+  color: ${p => getColor({ theme: p.theme, variable: 'foreground.subtle' })};
 `
 
-/* fg/subtle — neutralHue.700 */
-const Separator = styled.span`
-  color: #646864;
-  margin: 0 2px;
-  font-size: 14px;
-  line-height: 20px;
-  font-weight: 400;
-`
-
-const Subtle = styled.span`
-  color: #646864;
-  font-size: 14px;
-  line-height: 20px;
-  font-weight: 400;
+/* Flora Core "Current" text → fg/subtle */
+const CurrentPage = styled.span.attrs({ 'data-inspect-token-color': 'fg/subtle' })`
+  color: ${p => getColor({ theme: p.theme, variable: 'foreground.subtle' })};
 `
 
 export default function Breadcrumbs({ items }) {
   const navigate = useNavigate()
 
   return (
-    <BreadcrumbContainer>
-      {items.map((item, i) => {
-        const isLink = Boolean(item.path)
-        return (
-          <span key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            {i > 0 && <Separator>{'>'}</Separator>}
-            {isLink ? (
-              <BreadcrumbLink onClick={() => navigate(item.path)}>
+    <BreadcrumbWrap>
+      <Breadcrumb aria-label="Breadcrumbs">
+        {items.map((item, i) => {
+          const isCurrent = i === items.length - 1
+
+          if (isCurrent) {
+            return <CurrentPage key={`${item.label}-${i}`}>{item.label}</CurrentPage>
+          }
+
+          if (item.path) {
+            return (
+              <BreadcrumbAnchor
+                key={`${item.label}-${i}`}
+                href={item.path}
+                onClick={e => {
+                  e.preventDefault()
+                  navigate(item.path)
+                }}
+              >
                 {item.label}
-              </BreadcrumbLink>
-            ) : (
-              <Subtle>{item.label}</Subtle>
-            )}
-          </span>
-        )
-      })}
-    </BreadcrumbContainer>
+              </BreadcrumbAnchor>
+            )
+          }
+
+          return <AncestorText key={`${item.label}-${i}`}>{item.label}</AncestorText>
+        })}
+      </Breadcrumb>
+    </BreadcrumbWrap>
   )
 }

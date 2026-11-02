@@ -26,9 +26,10 @@ const Title = styled.h1`
   margin: 0 0 4px;
 `
 
+/* Flora Medium / Default — fg/default (main page copy, not subtle). */
 const Subtitle = styled.p`
   font-size: 14px;
-  color: #49545c;
+  color: #2f3130;
   margin: 0;
 `
 
@@ -56,9 +57,10 @@ const CompareLink = styled.span`
   }
 `
 
+/* Flora fg/subtle — count metadata */
 const CountLabel = styled.div`
   font-size: 14px;
-  color: #49545c;
+  color: #646864;
   margin-bottom: 12px;
 `
 
@@ -88,14 +90,14 @@ const Th = styled.th`
   padding: 12px 16px;
   font-size: 14px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
   border-bottom: 1px solid #d8dcde;
 `
 
 const Td = styled.td`
   padding: 16px;
   font-size: 14px;
-  color: #2f3941;
+  color: #2f3130;
   border-bottom: 1px solid #e9ebed;
   vertical-align: middle;
 `
@@ -113,16 +115,17 @@ const ClickableRow = styled.tr`
 `
 
 const NameCell = styled.span`
-  color: #2f3941;
+  color: #2f3130;
 `
 
 const Hint = styled.span`
-  color: #68737d;
+  color: #646864;
   font-weight: 400;
 `
 
+/* Flora fg/subtle — description is supporting content */
 const DescCell = styled.span`
-  color: #49545c;
+  color: #646864;
 `
 
 const TypeTag = styled.span`
@@ -133,12 +136,12 @@ const TypeTag = styled.span`
   padding: 4px 10px;
   font-size: 13px;
   font-weight: 500;
-  color: ${p => p.$system ? '#68737d' : '#2f3941'};
+  color: ${p => p.$system ? '#646864' : '#2f3130'};
 `
 
 const CountCell = styled.span`
   font-size: 14px;
-  color: #2f3941;
+  color: #2f3130;
 `
 
 export default function RolesList() {

@@ -21,7 +21,7 @@ const CheckboxRow = styled.label`
   margin-bottom: 20px;
   cursor: pointer;
   font-size: 14px;
-  color: #2f3941;
+  color: #2f3130;
   font-weight: 500;
 `
 
@@ -195,7 +195,7 @@ const SubSectionHeader = styled.h3`
   margin: 0 0 8px;
   font-size: 14px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
 `
 
 const CheckboxGroup = styled.div`

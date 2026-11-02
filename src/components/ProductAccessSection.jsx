@@ -13,7 +13,7 @@ const Section = styled.div`
 `
 
 const StyledAlert = styled(Alert)`
-  max-width: 630px;
+  max-width: 726px;
   margin-bottom: 20px;
   border-radius: 4px;
   background-color: #f8f9f9;
@@ -42,7 +42,7 @@ const CheckboxRow = styled.label`
   margin-bottom: 20px;
   cursor: pointer;
   font-size: 14px;
-  color: #2f3941;
+  color: #2f3130;
   font-weight: 500;
 `
 
@@ -110,7 +110,7 @@ const ManageBlock = styled.div`
 const ManageTitle = styled.div`
   font-size: 14px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
   margin-bottom: 8px;
 `
 

@@ -32,7 +32,7 @@ const DialogHeader = styled.div`
 const DialogTitle = styled.h2`
   font-size: 18px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
   margin: 0;
 `
 
@@ -46,7 +46,7 @@ const CloseButton = styled.button`
   padding: 4px;
 
   &:hover {
-    color: #2f3941;
+    color: #2f3130;
   }
 `
 
@@ -56,7 +56,7 @@ const DialogBody = styled.div`
 
 const HelperText = styled.p`
   font-size: 14px;
-  color: #2f3941;
+  color: #2f3130;
   line-height: 1.5;
   margin: 0 0 24px;
 `
@@ -65,7 +65,7 @@ const FieldLabel = styled.label`
   display: block;
   font-size: 14px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
   margin-bottom: 8px;
 `
 
@@ -105,7 +105,7 @@ const Tag = styled.span`
   padding: 4px 8px;
   font-size: 14px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
 `
 
 const TagRemove = styled.button`
@@ -118,7 +118,7 @@ const TagRemove = styled.button`
   padding: 0;
 
   &:hover {
-    color: #2f3941;
+    color: #2f3130;
   }
 `
 
@@ -173,7 +173,7 @@ const MemberInfo = styled.div`
 
 const MemberName = styled.span`
   font-size: 15px;
-  color: ${p => p.$disabled ? '#c2c8cc' : '#2f3941'};
+  color: ${p => p.$disabled ? '#c2c8cc' : '#2f3130'};
 `
 
 const MemberSub = styled.span`

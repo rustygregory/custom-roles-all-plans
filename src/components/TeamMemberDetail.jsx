@@ -59,7 +59,7 @@ const Header = styled.div`
 const Title = styled.h1`
   font-size: 24px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
   margin: 0;
 `
 
@@ -92,7 +92,7 @@ const Tab = styled.button`
   padding: 12px 16px;
   font-size: 14px;
   font-weight: ${p => p.$active ? '600' : '400'};
-  color: ${p => p.$active ? '#2f3941' : '#68737d'};
+  color: ${p => p.$active ? '#2f3130' : '#68737d'};
   cursor: pointer;
   position: relative;
 
@@ -107,7 +107,7 @@ const Tab = styled.button`
   }
 
   &:hover {
-    color: #2f3941;
+    color: #2f3130;
   }
 `
 

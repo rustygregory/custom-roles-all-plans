@@ -20,7 +20,7 @@ const PageHeader = styled.div`
 const Title = styled.h1`
   font-size: 24px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
   margin: 0 0 4px;
 `
 
@@ -81,7 +81,7 @@ const CreateButton = styled.button`
 const SearchLabel = styled.div`
   font-size: 16px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
   margin-bottom: 8px;
 `
 
@@ -107,7 +107,7 @@ const SearchInput = styled.input`
   border: 1px solid #87929d;
   border-radius: 4px;
   font-size: 14px;
-  color: #2f3941;
+  color: #2f3130;
 
   &:focus {
     outline: none;
@@ -145,7 +145,7 @@ const CountRow = styled.div`
 const CountLabel = styled.span`
   font-size: 14px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
 `
 
 const BulkManageLink = styled.a`
@@ -170,7 +170,7 @@ const Th = styled.th`
   padding: 12px 16px 12px 0;
   font-size: 14px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
   border-bottom: 1px solid #d8dcde;
   white-space: nowrap;
 
@@ -189,7 +189,7 @@ const SortIcon = styled.span`
 const Td = styled.td`
   padding: 12px 16px 12px 0;
   font-size: 14px;
-  color: #2f3941;
+  color: #2f3130;
   border-bottom: 1px solid #e9ebed;
   vertical-align: middle;
 `

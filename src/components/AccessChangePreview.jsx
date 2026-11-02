@@ -48,7 +48,7 @@ const Subtitle = styled.p`
   font-weight: 400;
   color: #2f3130;
   margin: 0 0 24px;
-  max-width: 630px;
+  max-width: 726px;
 `
 
 const Toolbar = styled.div`

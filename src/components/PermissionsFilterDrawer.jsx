@@ -46,7 +46,7 @@ const Title = styled.h2`
   margin: 0;
   font-size: 20px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
 `
 
 const CloseButton = styled.button.attrs({ type: 'button' })`
@@ -63,7 +63,7 @@ const CloseButton = styled.button.attrs({ type: 'button' })`
   padding: 0;
 
   &:hover {
-    color: #2f3941;
+    color: #2f3130;
   }
 `
 
@@ -92,7 +92,7 @@ const SectionTitle = styled.h3`
   margin: 0 0 12px;
   font-size: 14px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
 `
 
 const OptionList = styled.div`
@@ -106,7 +106,7 @@ const OptionLabel = styled.label`
   align-items: flex-start;
   gap: 10px;
   font-size: 14px;
-  color: #2f3941;
+  color: #2f3130;
   cursor: pointer;
 `
 

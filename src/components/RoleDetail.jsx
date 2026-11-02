@@ -68,10 +68,11 @@ const SidePanel = styled.aside`
   overflow-y: auto;
 `
 
+/* Flora fg/default */
 const SidePanelTitle = styled.h3`
   font-size: 16px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
   margin: 0 0 24px;
 `
 
@@ -83,20 +84,21 @@ const EmptyState = styled.div`
 const EmptyStateTitle = styled.div`
   font-size: 16px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
   margin-bottom: 8px;
 `
 
+/* Flora fg/subtle — supporting empty-state copy */
 const EmptyStateText = styled.div`
   font-size: 14px;
-  color: #68737d;
+  color: #646864;
   line-height: 1.5;
   margin-bottom: 16px;
 `
 
 const SidePanelHint = styled.p`
   font-size: 14px;
-  color: #68737d;
+  color: #646864;
   line-height: 1.5;
   margin: 0 0 24px;
 `
@@ -109,7 +111,7 @@ const MemberTableHead = styled.div`
   padding: 12px 0;
   font-size: 13px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
   border-bottom: 1px solid #e9ebed;
 `
 
@@ -339,7 +341,7 @@ const ActionsMenuItem = styled.button`
   border: none;
   background: none;
   font-size: 15px;
-  color: ${p => p.$danger ? '#cc3340' : '#2f3941'};
+  color: ${p => p.$danger ? '#cc3340' : '#2f3130'};
   cursor: pointer;
 
   &:hover {
@@ -377,7 +379,7 @@ const OpenAllRow = styled.div`
   gap: 16px;
   box-sizing: border-box;
   width: 100%;
-  max-width: ${p => p.$maxWidth || 630}px;
+  max-width: ${p => p.$maxWidth || 726}px;
   margin-bottom: 12px;
 `
 
@@ -386,7 +388,7 @@ const PermissionsFilterBlock = styled.div`
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: ${p => p.$maxWidth || 630}px;
+  max-width: ${p => p.$maxWidth || 726}px;
   width: 100%;
   margin-bottom: 32px;
 `
@@ -404,7 +406,7 @@ const SearchFieldWrap = styled.div`
   flex: 1;
   min-width: 0;
   max-width: ${p => p.$maxWidth || 400}px;
-  color: #68737d;
+  color: #646864;
 `
 
 /* Flora Filters Media Button: outline Default + Slider start icon.
@@ -501,7 +503,7 @@ const SectionTitleRow = styled.div`
   gap: 16px;
   box-sizing: border-box;
   width: 100%;
-  max-width: ${p => p.$maxWidth || 630}px;
+  max-width: ${p => p.$maxWidth || 726}px;
   margin: 0 0 8px;
 
   > :first-child {
@@ -512,21 +514,19 @@ const SectionTitleRow = styled.div`
 `
 
 /* Flora Basic Button — tertiary/deemphasized in-page action (button/fg/default).
-   Zero end padding so the label shares the capsules’ right edge. */
+   Default end padding is kept; negative margin lets hover chrome hang past the
+   capsule’s right edge instead of clipping the hit area. */
 const OpenAllButton = styled(Button).attrs({
   isBasic: true,
 })`
   flex-shrink: 0;
-
-  && {
-    padding-inline-end: 0;
-  }
+  margin-inline-end: -15px;
 `
 
 const SubSectionHeader = styled.h3`
   font-size: 14px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
   /* Within-section title → controls; between-section spacing is Body gap 24px. */
   margin: 0 0 8px;
 `
@@ -549,7 +549,7 @@ const SaveErrorAlert = styled.div.attrs({ role: 'alert' })`
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  max-width: 630px;
+  max-width: 726px;
   margin: 0 0 24px;
   padding: 16px;
   border-radius: 16px;
@@ -617,14 +617,16 @@ const FloraErrorIcon = () => (
   </svg>
 )
 
+/* Flora fg/default — field / control labels (main content, not hint). */
 const Label = styled.label`
   display: block;
   font-size: 14px;
   font-weight: 500;
-  color: #2f3941;
+  color: #2f3130;
   margin-bottom: 4px;
 `
 
+/* Flora fg/subtle — helper / hint copy */
 const HintText = styled.span`
   font-size: 12px;
   color: #646864;
@@ -642,7 +644,7 @@ const CheckboxLabel = styled.label`
   align-items: flex-start;
   gap: 8px;
   font-size: 14px;
-  color: #2f3941;
+  color: #2f3130;
   cursor: pointer;
 `
 
@@ -665,7 +667,7 @@ const RadioLabel = styled.label`
   align-items: flex-start;
   gap: 8px;
   font-size: 14px;
-  color: #2f3941;
+  color: #2f3130;
   cursor: pointer;
 `
 
@@ -763,8 +765,8 @@ export default function RoleDetail() {
   /* V2.5 keeps V2 opt-in capsules but replaces per-member warnings with a
      single summary + work-area preview table. */
   const isScaledSimplified = version === 'v2.5'
-  /* Capsules stay at the original 630px. Name / description / search are 400. */
-  const capsuleMaxWidth = 630
+  /* Capsules match Ticket forms V4 / Flora Accordion well (726px). Fields stay 400. */
+  const capsuleMaxWidth = 726
   const fieldMaxWidth = 400
   const productList = isPanelVersion ? PRODUCT_CAPSULES_V3 : PRODUCT_CAPSULES
   const radioProducts = isPanelVersion ? RADIO_PRODUCTS_V3 : RADIO_PRODUCTS
@@ -1569,7 +1571,7 @@ export default function RoleDetail() {
           </CheckboxGroup>
 
           <div style={{ marginTop: '12px' }}>
-            <table style={{ fontSize: '13px', color: '#49545c' }}>
+            <table style={{ fontSize: '13px', color: '#2f3130' }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', padding: '4px 16px 4px 0', fontWeight: 500 }}>User field</th>

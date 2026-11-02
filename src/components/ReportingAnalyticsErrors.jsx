@@ -34,7 +34,7 @@ const BlockTitle = styled.h3`
   margin: 0 0 4px;
   font-size: 14px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
 `
 
 const BlockHint = styled.p`
@@ -105,7 +105,7 @@ const Nested = styled.div`
 const NestedLabel = styled.div`
   font-size: 14px;
   font-weight: 600;
-  color: #2f3941;
+  color: #2f3130;
 `
 
 const NestedHint = styled.div`
@@ -180,7 +180,7 @@ const MenuItem = styled.li`
   gap: 12px;
   padding: 8px 12px;
   font-size: 14px;
-  color: #2f3941;
+  color: #2f3130;
   cursor: pointer;
   background: ${p => (p.$selected ? '#edf0f2' : 'transparent')};
 
