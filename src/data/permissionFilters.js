@@ -21,7 +21,7 @@ export const FILTER_GROUPS = [
 
 /** Groups shown in the filter drawer for a given prototype version. */
 export function filterGroupsForVersion(version) {
-  if (version === 'v4') return FILTER_GROUPS
+  if (version === 'v4' || version === 'v5' || version === 'v6' || version === 'v6.5' || version === 'v7') return FILTER_GROUPS
   return FILTER_GROUPS.filter((g) => g.id !== 'wfm')
 }
 

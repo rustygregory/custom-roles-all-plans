@@ -3,10 +3,12 @@ import { createPortal } from 'react-dom'
 import styled from 'styled-components'
 import { PALETTE } from '../flora-theme/elements/palette'
 import { requestCommentAt, setInspectModeFlag } from './bridge'
+import { measureBoxes, measureMargins } from './measure'
 import { elementFromPointInRoot, readElementDetails } from './readStyles'
 
 const Z = 9100
 const MINT_500 = PALETTE.mint[500]
+const MEASURE = '#ff6b4a'
 const PANEL_WIDTH = 300
 const PANEL_MARGIN = 16
 
@@ -96,9 +98,40 @@ const Highlight = styled.div`
   border-radius: 2px;
 `
 
-const Panel = styled.aside`
+const MarginBand = styled.div`
   position: fixed;
   z-index: ${Z + 2};
+  pointer-events: none;
+  background: rgba(255, 107, 74, 0.28);
+`
+
+const MeasureLine = styled.div`
+  position: fixed;
+  z-index: ${Z + 3};
+  pointer-events: none;
+  background: ${MEASURE};
+`
+
+const MeasureLabel = styled.div`
+  position: fixed;
+  z-index: ${Z + 4};
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: ${MEASURE};
+  color: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+`
+
+const Panel = styled.aside`
+  position: fixed;
+  z-index: ${Z + 5};
   width: ${PANEL_WIDTH}px;
   max-height: calc(100vh - 32px);
   overflow: auto;
@@ -174,7 +207,7 @@ const RowLabel = styled.div`
 `
 
 const RowValue = styled.div`
-  color: ${(p) => (p.$token ? '#9affce' : '#e8eaed')};
+  color: ${(p) => (p.$token ? '#9affce' : p.$measure ? MEASURE : '#e8eaed')};
   word-break: break-word;
 `
 
@@ -231,6 +264,7 @@ function startFromUrl() {
 
 /**
  * Inspect mode: hover to highlight, click to select, Esc / toggle to exit.
+ * Selection shows CSS margin bands; hover another element for gaps / insets.
  * ⌘/Ctrl+Click places a comment when Comment mode is also on.
  */
 export default function InspectLayer({
@@ -243,6 +277,7 @@ export default function InspectLayer({
   const [tick, setTick] = useState(0)
   const [copied, setCopied] = useState(false)
   const [panelPos, setPanelPos] = useState(defaultPanelPosition)
+  const [scrimOpen, setScrimOpen] = useState(false)
   const panelRef = useRef(null)
   const dragRef = useRef(null)
 
@@ -252,6 +287,7 @@ export default function InspectLayer({
     if (!isOn) {
       setHoverEl(null)
       setSelectedEl(null)
+      setScrimOpen(false)
     }
     return () => setInspectModeFlag(false)
   }, [isOn, onActiveChange])
@@ -286,6 +322,23 @@ export default function InspectLayer({
     window.addEventListener('keydown', onKeyDown, true)
     return () => window.removeEventListener('keydown', onKeyDown, true)
   }, [isOn, selectedEl])
+
+  /* Scrim open: inspect the modal only; clear any selection the scrim covers. */
+  useEffect(() => {
+    if (!isOn) return undefined
+    const inModal = (el) => Boolean(el?.closest?.('[data-garden-id="modals.modal"]'))
+    const check = () => {
+      const open = Boolean(document.querySelector('[data-garden-id="modals.backdrop"]'))
+      setScrimOpen(open)
+      if (!open) return
+      setSelectedEl((current) => (inModal(current) ? current : null))
+      setHoverEl((current) => (inModal(current) ? current : null))
+    }
+    check()
+    const observer = new MutationObserver(check)
+    observer.observe(document.body, { childList: true, subtree: true })
+    return () => observer.disconnect()
+  }, [isOn])
 
   /* Keep the panel on-screen if the window is resized after a drag. */
   useEffect(() => {
@@ -347,6 +400,26 @@ export default function InspectLayer({
     return selectedEl ? readElementDetails(selectedEl) : null
   }, [selectedEl, tick])
 
+  const marginMeasure = useMemo(() => {
+    void tick
+    if (!selectedEl) return { mode: 'margin', guides: [], bands: [], summary: [] }
+    return measureMargins(selectedEl)
+  }, [selectedEl, tick])
+
+  const measure = useMemo(() => {
+    void tick
+    if (!selectedBox || !hoverBox || !hoverEl || hoverEl === selectedEl) {
+      return { mode: 'gap', guides: [], summary: [] }
+    }
+    return measureBoxes(selectedBox, hoverBox)
+  }, [selectedBox, hoverBox, hoverEl, selectedEl, tick])
+
+  const measuringGap = measure.guides.length > 0
+  const overlayGuides = measuringGap ? measure.guides : marginMeasure.guides
+  const measureSummary = measuringGap
+    ? measure.summary
+    : marginMeasure.summary.filter((line) => line !== 'Margin 0')
+
   const onMove = useCallback((event) => {
     const root = getInspectRoot()
     const el = elementFromPointInRoot(event.clientX, event.clientY, root)
@@ -364,10 +437,16 @@ export default function InspectLayer({
       }
       /* Comment off: pass through to the prototype under the catcher. */
       const root = getInspectRoot()
-      const beneath = document
-        .elementsFromPoint(event.clientX, event.clientY)
-        .find((el) => el instanceof Element && root?.contains(el) && !el.closest('[data-inspect-ui="true"]'))
-      const clickable = beneath?.closest?.('a[href], button, input, select, [role="button"]')
+      const beneath = document.elementsFromPoint(event.clientX, event.clientY).find((el) => {
+        if (!(el instanceof Element)) return false
+        if (el.closest('[data-inspect-ui="true"]')) return false
+        if (el.closest('[data-garden-id="modals.modal"]')) return true
+        if (el.closest('[data-garden-id="modals.backdrop"]')) return false
+        return Boolean(root?.contains(el))
+      })
+      const clickable = beneath?.closest?.(
+        'a[href], button, input, select, textarea, [role="button"], [role="combobox"]',
+      )
       if (clickable) clickable.click()
       return
     }
@@ -377,10 +456,41 @@ export default function InspectLayer({
     setSelectedEl(el)
   }, [])
 
+  /* Scrim open: inspect only the modal (hover + click → specs). Ignore covered page.
+     Let PrototypeBar / inspect chrome clicks through so Exit inspect still works. */
+  useEffect(() => {
+    if (!isOn || !scrimOpen) return undefined
+    const isInspectChrome = (target) =>
+      Boolean(
+        target?.closest?.(
+          '[data-inspect-ui="true"], [data-inspect-console], [data-comment-ui="true"]',
+        ),
+      )
+    const onMoveDoc = (event) => {
+      if (isInspectChrome(event.target)) return
+      onMove(event)
+    }
+    const onClickDoc = (event) => {
+      if (isInspectChrome(event.target)) return
+      event.preventDefault()
+      event.stopPropagation()
+      const el = elementFromPointInRoot(event.clientX, event.clientY, getInspectRoot())
+      setSelectedEl(el)
+    }
+    document.addEventListener('mousemove', onMoveDoc, true)
+    document.addEventListener('click', onClickDoc, true)
+    return () => {
+      document.removeEventListener('mousemove', onMoveDoc, true)
+      document.removeEventListener('click', onClickDoc, true)
+    }
+  }, [isOn, scrimOpen, onMove])
+
   const copyDetails = async () => {
     if (!details?.copyText) return
+    const measureBlock =
+      measureSummary.length > 0 ? `\n\nMeasure:\n${measureSummary.join('\n')}` : ''
     try {
-      await navigator.clipboard.writeText(details.copyText)
+      await navigator.clipboard.writeText(`${details.copyText}${measureBlock}`)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
@@ -406,14 +516,16 @@ export default function InspectLayer({
       {isOn && catcherBox && (
         <Catcher
           data-inspect-ui="true"
-          onMouseMove={onMove}
-          onMouseLeave={() => setHoverEl(null)}
-          onClick={onClick}
+          onMouseMove={scrimOpen ? undefined : onMove}
+          onMouseLeave={scrimOpen ? undefined : () => setHoverEl(null)}
+          onClick={scrimOpen ? undefined : onClick}
           style={{
             left: catcherBox.left,
             top: catcherBox.top,
             width: catcherBox.width,
             height: catcherBox.height,
+            /* Yield to portaled modal + scrim so dialog controls stay clickable. */
+            pointerEvents: scrimOpen ? 'none' : 'auto',
           }}
         />
       )}
@@ -444,6 +556,56 @@ export default function InspectLayer({
         />
       )}
 
+      {isOn &&
+        !measuringGap &&
+        marginMeasure.bands.map((band) => (
+          <MarginBand
+            key={band.id}
+            data-inspect-ui="true"
+            style={{
+              left: band.left,
+              top: band.top,
+              width: band.width,
+              height: band.height,
+            }}
+          />
+        ))}
+
+      {isOn &&
+        overlayGuides.map((g) => {
+          const isH = g.axis === 'h'
+          const length = isH ? Math.abs(g.x2 - g.x1) : Math.abs(g.y2 - g.y1)
+          if (length < 1) return null
+          return (
+            <div key={g.id}>
+              <MeasureLine
+                data-inspect-ui="true"
+                style={
+                  isH
+                    ? {
+                        left: Math.min(g.x1, g.x2),
+                        top: g.y1 - 0.5,
+                        width: length,
+                        height: 1,
+                      }
+                    : {
+                        left: g.x1 - 0.5,
+                        top: Math.min(g.y1, g.y2),
+                        width: 1,
+                        height: length,
+                      }
+                }
+              />
+              <MeasureLabel
+                data-inspect-ui="true"
+                style={{ left: g.labelX, top: g.labelY }}
+              >
+                {g.label}px
+              </MeasureLabel>
+            </div>
+          )
+        })}
+
       {isOn && details && (
         <Panel
           ref={panelRef}
@@ -465,8 +627,15 @@ export default function InspectLayer({
             </CloseBtn>
           </PanelHeader>
           <PanelHint>
-            Drag the header to move. Esc clears selection, then exits Inspect. ⌘/Ctrl+click places a comment when Comment is on.
+            Drag the header to move. Select an element to measure CSS margins; hover another for
+            gaps or insets. Esc clears, then exits. ⌘/Ctrl+click places a comment when Comment is on.
           </PanelHint>
+          {measureSummary.map((line) => (
+            <Row key={line}>
+              <RowLabel>Measure</RowLabel>
+              <RowValue $measure>{line}</RowValue>
+            </Row>
+          ))}
           {details.rows.map((row) => (
             <Row key={`${row.label}:${row.value}`}>
               <RowLabel>{row.label}</RowLabel>

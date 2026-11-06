@@ -1,22 +1,39 @@
-import { useState, useEffect, useRef } from 'react'
+import { Fragment, useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import styled from 'styled-components'
 import { Button, Anchor } from '@zendeskgarden/react-buttons'
 import { Alert, Notification } from '@zendeskgarden/react-notifications'
-import { Field, Input, MediaInput, Textarea } from '@zendeskgarden/react-forms'
+import { Field, Fieldset, Input, MediaInput, Radio, Textarea } from '@zendeskgarden/react-forms'
 import { Tag } from '@zendeskgarden/react-tags'
 import Breadcrumbs from './Breadcrumbs'
 import AIAgentsSection, { AI_AGENTS_SEARCH_TEXT } from './AIAgentsSection'
 import ProductAccessSection, { productAccessSearchText } from './ProductAccessSection'
+import QaDensePermissions, { qaPermissionsSearchText } from './QaDensePermissions'
+import QaDomainMapPermissions, { qaDomainMapSearchText } from './QaDomainMapPermissions'
+import QaLayerCakePermissions, { qaLayerCakeSearchText } from './QaLayerCakePermissions'
+import QaLayerCakePermissionsV65, {
+  qaLayerCakeV65SearchText,
+} from './QaLayerCakePermissionsV65'
+import QaSectionedPermissionsV7, {
+  qaSectionedV7SearchText,
+} from './QaSectionedPermissionsV7'
 import ReportingAnalyticsErrors, { REPORTING_ERRORS_SEARCH_TEXT } from './ReportingAnalyticsErrors'
 import WorkforceManagementSection, {
   WFM_ASSIGNMENT_SEARCH_TEXT,
 } from './WorkforceManagementSection'
 import SettingsCapsule from './SettingsCapsule'
 import AssignRoleModal from './AssignRoleModal'
+import CreateRoleTypeModal from './CreateRoleTypeModal'
 import PermissionsFilterDrawer from './PermissionsFilterDrawer'
 import PermissionBlock, { PermissionFilterProvider } from './PermissionBlock'
 import { useAppContext } from '../context/AppContext'
+import {
+  ROLE_PACKAGE_OPTIONS,
+  permissionsForPackage,
+  productsForPackage,
+  isRolePackagePermissionsMatch,
+  isRolePackageProductsMatch,
+} from '../data/rolePackages'
 import {
   teamMembers,
   AI_ACCESS_LABELS,
@@ -367,8 +384,9 @@ const Subtitle = styled.p`
   margin: 0 0 32px;
 `
 
+/* 32px between form sections (identity → role type → search). */
 const FormSection = styled.div`
-  margin-bottom: 28px;
+  margin-bottom: 32px;
 `
 
 /* Matches the capsules so Open all sits on their right edge. */
@@ -538,6 +556,51 @@ const FieldGroup = styled.div`
 
   &:last-child {
     margin-bottom: 0;
+  }
+`
+
+/* Role package radios — Garden Fieldset + Radio with Field.Hint under each. */
+const RolePackageFieldset = styled(Fieldset)`
+  max-width: ${p => p.$maxWidth || 630}px;
+`
+
+/* Role type help — Flora medium/default 14/20, fg/subtle. */
+const RolePackageHint = styled.p`
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  color: #646864;
+`
+
+const RolePackageOptions = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`
+
+const RolePackageLabelRow = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+`
+
+/* Same Flora Customized tag as QA capsule (tag/bg/orange + tag/fg/orange). */
+const CustomizedTag = styled(Tag).attrs({
+  size: 'small',
+  isPill: true,
+})`
+  height: 16px;
+  min-height: 16px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  background-color: #fae7d7;
+  color: #4a290c;
+
+  &:hover {
+    color: #4a290c;
   }
 `
 
@@ -757,17 +820,27 @@ export default function RoleDetail() {
     roleAssignments,
     assignMembersToRole,
     getProductAccess,
+    updateProductAccess,
     saveProductAccess,
     copyProductAccess,
   } = useAppContext()
-  const isPanelVersion = version === 'v3' || version === 'v3.5' || version === 'v4'
-  const isWfmConcept = version === 'v4'
+  const isPanelVersion = version === 'v3' || version === 'v3.5' || version === 'v4' || version === 'v5' || version === 'v6' || version === 'v6.5' || version === 'v7'
+  /* V4–V7 share role type + WFM; QA presentation differs per version. */
+  const isWfmConcept = version === 'v4' || version === 'v5' || version === 'v6' || version === 'v6.5' || version === 'v7'
+  const isRolePackageVersion = version === 'v4' || version === 'v5' || version === 'v6' || version === 'v6.5' || version === 'v7'
+  const isDenseQa = version === 'v4'
+  const isDomainMapQa = version === 'v5'
+  const isLayerCakeQa = version === 'v6'
+  const isLayerCakeV65Qa = version === 'v6.5'
+  const isSectionedV7Qa = version === 'v7'
   /* V2.5 keeps V2 opt-in capsules but replaces per-member warnings with a
      single summary + work-area preview table. */
   const isScaledSimplified = version === 'v2.5'
-  /* Capsules match Ticket forms V4 / Flora Accordion well (726px). Fields stay 400. */
+  /* Capsules match Ticket forms V4 / Flora Accordion well (726px).
+     Name uses Flora short-field width; description / role package use 630. */
   const capsuleMaxWidth = 726
   const fieldMaxWidth = 400
+  const descriptionMaxWidth = 630
   const productList = isPanelVersion ? PRODUCT_CAPSULES_V3 : PRODUCT_CAPSULES
   const radioProducts = isPanelVersion ? RADIO_PRODUCTS_V3 : RADIO_PRODUCTS
   const [showToast, setShowToast] = useState(false)
@@ -830,6 +903,43 @@ export default function RoleDetail() {
 
   const [nameValue, setNameValue] = useState(role?.name || '')
   const [descValue, setDescValue] = useState(role?.description || '')
+  /* Create-role package from the Choose a role type modal. Seeds settings +
+     products; changing the radio re-applies the package preset. */
+  const [rolePackage, setRolePackage] = useState(() => location.state?.rolePackage || '')
+  const [permissions, setPermissions] = useState(() =>
+    permissionsForPackage(location.state?.rolePackage || ''),
+  )
+  const [showRoleTypeModal, setShowRoleTypeModal] = useState(
+    () => isRolePackageVersion && id === 'create' && !location.state?.rolePackage,
+  )
+  /* QA dense checklist divergence from the page role-type package’s QA level. */
+  const [qaPackageDiverged, setQaPackageDiverged] = useState(false)
+
+  const setPerm = (key, value) => {
+    setPermissions((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const applyRolePackage = (pkg) => {
+    setRolePackage(pkg)
+    setPermissions(permissionsForPackage(pkg))
+    setQaPackageDiverged(false)
+    const products = productsForPackage(pkg)
+    for (const [pid, level] of Object.entries(products)) {
+      if (pid === 'ai-agents') {
+        updateAiAgentsState(aiAgentsKey, {
+          optedIn: level !== 'no_access',
+          saved: false,
+          accessLevel: level,
+        })
+      } else {
+        updateProductAccess(aiAgentsKey, pid, {
+          optedIn: true,
+          saved: false,
+          accessLevel: level,
+        })
+      }
+    }
+  }
 
   const aiAgentsRef = useRef(null)
   const wfmRef = useRef(null)
@@ -837,10 +947,10 @@ export default function RoleDetail() {
   const saveErrorAlertRef = useRef(null)
 
   /* Permissions live in capsules now. In V1 AI agents starts open — it's the
-     section that version exists to show. In V2+ every capsule starts closed so
-     the product list reads as a flat set of equals. Counselor opens Reporting
-     so the inline Brands/Groups errors are visible on land. Reset per role and
-     per version switch so neither carries over a fully-expanded page. */
+     section that version exists to show. Otherwise every capsule starts closed
+     so the product list reads as equals (including QA on combined V4).
+     Counselor opens Reporting so Brands/Groups errors are visible on land.
+     Reset per role and per version switch so neither carries a fully-expanded page. */
   const initialOpenCapsules = () => {
     if (id === 'counselor') return { reporting: true }
     if (version === 'v1') return { 'ai-agents': true }
@@ -856,6 +966,18 @@ export default function RoleDetail() {
   useEffect(() => {
     setNameValue(role?.name || '')
     setDescValue(role?.description || '')
+    if (isCreate) {
+      const incoming = isRolePackageVersion ? (location.state?.rolePackage || '') : ''
+      if (incoming) {
+        applyRolePackage(incoming)
+      } else {
+        setRolePackage('')
+        setPermissions(permissionsForPackage(''))
+      }
+      setShowRoleTypeModal(isRolePackageVersion && !incoming)
+    } else {
+      setShowRoleTypeModal(false)
+    }
     setOpenCapsules(
       id === 'counselor' ? { reporting: true }
         : version === 'v1' ? { 'ai-agents': true }
@@ -865,7 +987,10 @@ export default function RoleDetail() {
     setSettingsQuery('')
     setPermissionFilters(isPanelVersion ? DEFAULT_PERMISSION_FILTERS : { availableOnly: false, groups: [], topics: [] })
     setFilterDrawerOpen(false)
-  }, [id, role?.name, role?.description, version, isPanelVersion])
+    // applyRolePackage is stable enough for create seeding; omit from deps to
+    // avoid re-seeding on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, role?.name, role?.description, version, isPanelVersion, isRolePackageVersion, isCreate, location.state?.rolePackage])
 
   // Auto-scroll to the AI Agents section when arriving from the "Roles" link.
   useEffect(() => {
@@ -960,7 +1085,7 @@ export default function RoleDetail() {
 
   const capsuleKeys = version === 'v1'
     ? CAPSULE_KEYS
-    : version === 'v4'
+    : (version === 'v4' || version === 'v5' || version === 'v6' || version === 'v6.5' || version === 'v7')
       ? V4_CAPSULE_KEYS
       : isPanelVersion
         ? V3_CAPSULE_KEYS
@@ -1049,7 +1174,7 @@ export default function RoleDetail() {
       permissionFilters.groups.length > 0 || permissionFilters.topics.length > 0
     if (!narrowing) return
 
-    const keys = version === 'v4'
+    const keys = (version === 'v4' || version === 'v5' || version === 'v6' || version === 'v6.5' || version === 'v7')
       ? V4_CAPSULE_KEYS
       : (version === 'v3.5' || version === 'v3')
         ? V3_CAPSULE_KEYS
@@ -1085,6 +1210,16 @@ export default function RoleDetail() {
             <Notification.Close aria-label="Close" onClick={() => setShowToast(false)} />
           </Notification>
         </ToastWrapper>
+      )}
+      {isRolePackageVersion && isCreate && !hasSaved && showRoleTypeModal && (
+        <CreateRoleTypeModal
+          onClose={() => navigate('/roles')}
+          onContinue={(nextPackage) => {
+            applyRolePackage(nextPackage)
+            setShowRoleTypeModal(false)
+            navigate('/roles/create', { replace: true, state: { rolePackage: nextPackage } })
+          }}
+        />
       )}
       <ScrollArea ref={scrollAreaRef}>
         <Container>
@@ -1140,11 +1275,11 @@ export default function RoleDetail() {
         </SaveErrorAlert>
       )}
 
-      {/* Name & Description — Flora Field + Input / Textarea. */}
+      {/* Identity — Name + Description. */}
       <FormSection>
         <FieldGroup $maxWidth={fieldMaxWidth}>
           <Field>
-            <Field.Label>Name*</Field.Label>
+            <Field.Label>Name* (required)</Field.Label>
             <Input
               value={nameValue}
               onChange={(e) => setNameValue(e.target.value)}
@@ -1152,7 +1287,7 @@ export default function RoleDetail() {
             />
           </Field>
         </FieldGroup>
-        <FieldGroup $maxWidth={fieldMaxWidth}>
+        <FieldGroup $maxWidth={descriptionMaxWidth}>
           <Field>
             <Field.Label>Description</Field.Label>
             <Textarea
@@ -1165,6 +1300,52 @@ export default function RoleDetail() {
         </FieldGroup>
       </FormSection>
 
+      {/* Role package — V4 only; chosen in the create modal; adjustable here. */}
+      {isRolePackageVersion && isCreate && !hasSaved && rolePackage && (
+        <FormSection>
+          <RolePackageFieldset $maxWidth={descriptionMaxWidth}>
+            <Fieldset.Legend>Role type</Fieldset.Legend>
+            <RolePackageHint>
+              Applies a starting set of permissions across settings and products.
+              Change the type to re-apply the package, or tweak anything below.
+            </RolePackageHint>
+            <RolePackageOptions>
+              {ROLE_PACKAGE_OPTIONS.map((option) => {
+                const selected = rolePackage === option.value
+                const packageCustomized = selected && (
+                  !isRolePackagePermissionsMatch(option.value, permissions)
+                  || !isRolePackageProductsMatch(option.value, (productId) => (
+                    productId === 'ai-agents'
+                      ? getAiAgentsState(aiAgentsKey).accessLevel
+                      : getProductAccess(aiAgentsKey, productId).accessLevel
+                  ))
+                  || qaPackageDiverged
+                )
+                return (
+                  <Field key={option.value}>
+                    <Radio
+                      name="role-package"
+                      value={option.value}
+                      checked={selected}
+                      onChange={() => applyRolePackage(option.value)}
+                    >
+                      <Field.Label>
+                        <RolePackageLabelRow>
+                          <span>{option.label}</span>
+                          {packageCustomized && (
+                            <CustomizedTag>Customized</CustomizedTag>
+                          )}
+                        </RolePackageLabelRow>
+                      </Field.Label>
+                      <Field.Hint>{option.description}</Field.Hint>
+                    </Radio>
+                  </Field>
+                )
+              })}
+            </RolePackageOptions>
+          </RolePackageFieldset>
+        </FormSection>
+      )}
 
       {/* Permissions controls, then capsules. */}
       {isPanelVersion ? (
@@ -1282,50 +1463,50 @@ export default function RoleDetail() {
         <PermissionBlock tags={['tickets']}>
           <Label style={{ marginBottom: '12px' }}>Tickets they can access</Label>
           <RadioGroup>
-            <RadioLabel><RadioInput name="ticket-access" defaultChecked /> Requested by and users in their organizations</RadioLabel>
-            <RadioLabel><RadioInput name="ticket-access" /> Within their groups</RadioLabel>
-            <RadioLabel><RadioInput name="ticket-access" /> Within their group and all public groups</RadioLabel>
-            <RadioLabel><RadioInput name="ticket-access" /> All, including those in private groups</RadioLabel>
+            <RadioLabel><RadioInput name="ticket-access" checked={permissions.ticketAccess === 'org'} onChange={() => setPerm('ticketAccess', 'org')} /> Requested by and users in their organizations</RadioLabel>
+            <RadioLabel><RadioInput name="ticket-access" checked={permissions.ticketAccess === 'groups'} onChange={() => setPerm('ticketAccess', 'groups')} /> Within their groups</RadioLabel>
+            <RadioLabel><RadioInput name="ticket-access" checked={permissions.ticketAccess === 'public'} onChange={() => setPerm('ticketAccess', 'public')} /> Within their group and all public groups</RadioLabel>
+            <RadioLabel><RadioInput name="ticket-access" checked={permissions.ticketAccess === 'all'} onChange={() => setPerm('ticketAccess', 'all')} /> All, including those in private groups</RadioLabel>
           </RadioGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['tickets']}>
           <SubSectionHeader>Manage suspended tickets</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput defaultChecked /> Each allowed <HintText>- Automatically suspends tickets that may be risky or malicious</HintText></CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.manageSuspended} onChange={(e) => setPerm('manageSuspended', e.target.checked)} /> Each allowed <HintText>- Automatically suspends tickets that may be risky or malicious</HintText></CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['tickets']}>
           <SubSectionHeader>Edit ticket properties</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput defaultChecked /> Can tag and edit tickets and edit properties</CheckboxLabel>
-            <CheckboxLabel><CheckboxInput /> Delete tickets</CheckboxLabel>
-            <CheckboxLabel><CheckboxInput defaultChecked /> Restrict ticket content</CheckboxLabel>
-            <CheckboxLabel><CheckboxInput defaultChecked /> Merge tickets</CheckboxLabel>
-            <CheckboxLabel><CheckboxInput /> Edit ticket tags</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.editTicketProperties} onChange={(e) => setPerm('editTicketProperties', e.target.checked)} /> Can tag and edit tickets and edit properties</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.deleteTickets} onChange={(e) => setPerm('deleteTickets', e.target.checked)} /> Delete tickets</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.restrictTicketContent} onChange={(e) => setPerm('restrictTicketContent', e.target.checked)} /> Restrict ticket content</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.mergeTickets} onChange={(e) => setPerm('mergeTickets', e.target.checked)} /> Merge tickets</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.editTicketTags} onChange={(e) => setPerm('editTicketTags', e.target.checked)} /> Edit ticket tags</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['tickets']}>
           <SubSectionHeader>Commenting permissions</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput defaultChecked /> Private comments only</CheckboxLabel>
-            <CheckboxLabel><CheckboxInput defaultChecked /> Public and private comments</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.privateComments} onChange={(e) => setPerm('privateComments', e.target.checked)} /> Private comments only</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.publicPrivateComments} onChange={(e) => setPerm('publicPrivateComments', e.target.checked)} /> Public and private comments</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['tickets']}>
           <SubSectionHeader>Manage ticket forms</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Can access the Ticket Forms admin page and create, edit, update, and delete ticket forms</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.manageTicketForms} onChange={(e) => setPerm('manageTicketForms', e.target.checked)} /> Can access the Ticket Forms admin page and create, edit, update, and delete ticket forms</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['tickets']}>
           <SubSectionHeader>Manage ticket fields</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Can customize Ticket Fields admin page and create, edit, update, and delete ticket fields</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.manageTicketFields} onChange={(e) => setPerm('manageTicketFields', e.target.checked)} /> Can customize Ticket Fields admin page and create, edit, update, and delete ticket fields</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
       </SettingsCapsule>
@@ -1356,62 +1537,62 @@ export default function RoleDetail() {
         <PermissionBlock tags={['user-management']}>
           <Label style={{ marginBottom: '12px' }}>Manage and users</Label>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput defaultChecked /> View only</CheckboxLabel>
-            <CheckboxLabel><CheckboxInput /> Add, edit, and assume profiles in organizations they belong to</CheckboxLabel>
-            <CheckboxLabel><CheckboxInput /> Add, edit, delete, and assume profiles for any end user</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.endUsersViewOnly} onChange={(e) => setPerm('endUsersViewOnly', e.target.checked)} /> View only</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.endUsersOrgEdit} onChange={(e) => setPerm('endUsersOrgEdit', e.target.checked)} /> Add, edit, and assume profiles in organizations they belong to</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.endUsersAnyEdit} onChange={(e) => setPerm('endUsersAnyEdit', e.target.checked)} /> Add, edit, delete, and assume profiles for any end user</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['user-management']}>
           <SubSectionHeader>Search and view lists of end users</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput defaultChecked /> Find end users by name, email, phone, or organization. Without this, agents can only view individual and team profiles.</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.searchEndUsers} onChange={(e) => setPerm('searchEndUsers', e.target.checked)} /> Find end users by name, email, phone, or organization. Without this, agents can only view individual and team profiles.</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['user-management']}>
           <SubSectionHeader>Manage team members</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Not allowed</CheckboxLabel>
-            <CheckboxLabel><CheckboxInput defaultChecked /> View only</CheckboxLabel>
-            <CheckboxLabel><CheckboxInput /> Create, assign roles, add, and delete</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.teamMembers === 'none'} onChange={() => setPerm('teamMembers', 'none')} /> Not allowed</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.teamMembers === 'view'} onChange={() => setPerm('teamMembers', 'view')} /> View only</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.teamMembers === 'manage'} onChange={() => setPerm('teamMembers', 'manage')} /> Create, assign roles, add, and delete</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['user-management']}>
           <SubSectionHeader>Manage groups</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Add and remove team members from groups</CheckboxLabel>
-            <CheckboxLabel><CheckboxInput /> Create, edit, and delete groups</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.manageGroupMembers} onChange={(e) => setPerm('manageGroupMembers', e.target.checked)} /> Add and remove team members from groups</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.manageGroups} onChange={(e) => setPerm('manageGroups', e.target.checked)} /> Create, edit, and delete groups</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['user-management']}>
           <SubSectionHeader>Manage organizations</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Add, update, delete organizations</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.manageOrganizations} onChange={(e) => setPerm('manageOrganizations', e.target.checked)} /> Add, update, delete organizations</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['user-management']}>
           <SubSectionHeader>Manage organization fields</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Can add, edit, and delete organization fields</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.manageOrgFields} onChange={(e) => setPerm('manageOrgFields', e.target.checked)} /> Can add, edit, and delete organization fields</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['user-management']}>
           <SubSectionHeader>Manage roles</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Create, edit, and delete roles</CheckboxLabel>
-            <CheckboxLabel><CheckboxInput /> Can only edit subdomain roles</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.manageRoles} onChange={(e) => setPerm('manageRoles', e.target.checked)} /> Create, edit, and delete roles</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.manageSubdomainRoles} onChange={(e) => setPerm('manageSubdomainRoles', e.target.checked)} /> Can only edit subdomain roles</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['user-management']}>
           <SubSectionHeader>Manage user fields</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Can access the User Fields admin page and create, edit, update, and delete user fields</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.manageUserFields} onChange={(e) => setPerm('manageUserFields', e.target.checked)} /> Can access the User Fields admin page and create, edit, update, and delete user fields</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
       </SettingsCapsule>
@@ -1428,14 +1609,14 @@ export default function RoleDetail() {
         <PermissionBlock tags={['tickets', 'channels']}>
           <Label style={{ marginBottom: '8px' }}>Manage channels and extensions</Label>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Channels include email, social messaging apps, and other means of communication. Extensions include triggers, automations, and integrations.</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.manageChannels} onChange={(e) => setPerm('manageChannels', e.target.checked)} /> Channels include email, social messaging apps, and other means of communication. Extensions include triggers, automations, and integrations.</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['tickets', 'channels']}>
           <SubSectionHeader>Manage Facebook pages</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Can set Facebook pages to create tickets from Facebook wall posts</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.manageFacebook} onChange={(e) => setPerm('manageFacebook', e.target.checked)} /> Can set Facebook pages to create tickets from Facebook wall posts</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
       </SettingsCapsule>
@@ -1452,49 +1633,49 @@ export default function RoleDetail() {
         <PermissionBlock tags={['workflow']}>
           <Label style={{ marginBottom: '12px' }}>Manage permissions</Label>
           <RadioGroup>
-            <RadioLabel><RadioInput name="views" defaultChecked /> My views only</RadioLabel>
-            <RadioLabel><RadioInput name="views" /> See views only</RadioLabel>
-            <RadioLabel><RadioInput name="views" /> Add and edit personal views</RadioLabel>
-            <RadioLabel><RadioInput name="views" /> Add and edit personal and group views</RadioLabel>
-            <RadioLabel><RadioInput name="views" /> Add and edit personal, group, and global views</RadioLabel>
+            <RadioLabel><RadioInput name="views" checked={permissions.views === 'my'} onChange={() => setPerm('views', 'my')} /> My views only</RadioLabel>
+            <RadioLabel><RadioInput name="views" checked={permissions.views === 'see'} onChange={() => setPerm('views', 'see')} /> See views only</RadioLabel>
+            <RadioLabel><RadioInput name="views" checked={permissions.views === 'personal'} onChange={() => setPerm('views', 'personal')} /> Add and edit personal views</RadioLabel>
+            <RadioLabel><RadioInput name="views" checked={permissions.views === 'group'} onChange={() => setPerm('views', 'group')} /> Add and edit personal and group views</RadioLabel>
+            <RadioLabel><RadioInput name="views" checked={permissions.views === 'global'} onChange={() => setPerm('views', 'global')} /> Add and edit personal, group, and global views</RadioLabel>
           </RadioGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['workflow']}>
           <SubSectionHeader>Limit number of views</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput defaultChecked /> Limit views to 12 shared views and 8 personal views</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.limitViews} onChange={(e) => setPerm('limitViews', e.target.checked)} /> Limit views to 12 shared views and 8 personal views</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['workflow']}>
           <SubSectionHeader>Access view filtering</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput defaultChecked /> Can view and filter views</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.filterViews} onChange={(e) => setPerm('filterViews', e.target.checked)} /> Can view and filter views</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['workflow']}>
           <SubSectionHeader>Macro permissions</SubSectionHeader>
           <RadioGroup>
-            <RadioLabel><RadioInput name="macros" /> Apply only</RadioLabel>
-            <RadioLabel><RadioInput name="macros" defaultChecked /> Add and edit personal macros</RadioLabel>
-            <RadioLabel><RadioInput name="macros" /> Add and edit personal and group macros</RadioLabel>
-            <RadioLabel><RadioInput name="macros" /> Add and edit personal, group, and global macros</RadioLabel>
+            <RadioLabel><RadioInput name="macros" checked={permissions.macros === 'apply'} onChange={() => setPerm('macros', 'apply')} /> Apply only</RadioLabel>
+            <RadioLabel><RadioInput name="macros" checked={permissions.macros === 'personal'} onChange={() => setPerm('macros', 'personal')} /> Add and edit personal macros</RadioLabel>
+            <RadioLabel><RadioInput name="macros" checked={permissions.macros === 'group'} onChange={() => setPerm('macros', 'group')} /> Add and edit personal and group macros</RadioLabel>
+            <RadioLabel><RadioInput name="macros" checked={permissions.macros === 'global'} onChange={() => setPerm('macros', 'global')} /> Add and edit personal, group, and global macros</RadioLabel>
           </RadioGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['workflow']}>
           <SubSectionHeader>Access dynamic content</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Can view, edit, and add dynamic content</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.dynamicContent} onChange={(e) => setPerm('dynamicContent', e.target.checked)} /> Can view, edit, and add dynamic content</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['workflow']}>
           <SubSectionHeader>Manage contextual workspaces</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Can view, edit, and edit contextual workspaces</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.contextualWorkspaces} onChange={(e) => setPerm('contextualWorkspaces', e.target.checked)} /> Can view, edit, and edit contextual workspaces</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
       </SettingsCapsule>
@@ -1511,35 +1692,35 @@ export default function RoleDetail() {
         <PermissionBlock tags={['automation']}>
           <Label style={{ marginBottom: '8px' }}>Automations</Label>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Can view, add, edit, and delete automations</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.automations} onChange={(e) => setPerm('automations', e.target.checked)} /> Can view, add, edit, and delete automations</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['automation']}>
           <SubSectionHeader>Skills</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Can view, add, edit, and delete skills</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.skills} onChange={(e) => setPerm('skills', e.target.checked)} /> Can view, add, edit, and delete skills</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['automation']}>
           <SubSectionHeader>Service level agreements</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Can view, add, edit, and delete service level agreements</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.slas} onChange={(e) => setPerm('slas', e.target.checked)} /> Can view, add, edit, and delete service level agreements</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['automation']}>
           <SubSectionHeader>Triggers</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Can view, edit, add, and delete triggers</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.triggers} onChange={(e) => setPerm('triggers', e.target.checked)} /> Can view, edit, add, and delete triggers</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['automation']}>
           <SubSectionHeader>Business rules analysis</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Can view, edit, add, and delete business rule analysis</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.businessRulesAnalysis} onChange={(e) => setPerm('businessRulesAnalysis', e.target.checked)} /> Can view, edit, add, and delete business rule analysis</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
       </SettingsCapsule>
@@ -1560,14 +1741,14 @@ export default function RoleDetail() {
         <PermissionBlock tags={['gdpr', 'security']}>
           <SubSectionHeader>Manage deletion schedules</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Admins or Admins automatically delete data like tickets.</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.deletionSchedules} onChange={(e) => setPerm('deletionSchedules', e.target.checked)} /> Admins or Admins automatically delete data like tickets.</CheckboxLabel>
           </CheckboxGroup>
         </PermissionBlock>
 
         <PermissionBlock tags={['gdpr', 'user-management']}>
           <SubSectionHeader>Data handling</SubSectionHeader>
           <CheckboxGroup>
-            <CheckboxLabel><CheckboxInput /> Hide end user personally identifiable information (PII) from this role</CheckboxLabel>
+            <CheckboxLabel><CheckboxInput checked={permissions.hidePii} onChange={(e) => setPerm('hidePii', e.target.checked)} /> Hide end user personally identifiable information (PII) from this role</CheckboxLabel>
           </CheckboxGroup>
 
           <div style={{ marginTop: '12px' }}>
@@ -1599,7 +1780,7 @@ export default function RoleDetail() {
         {...capsuleProps('knowledge')}
       >
         <CheckboxGroup>
-          <CheckboxLabel><CheckboxInput defaultChecked /> Manage Guide</CheckboxLabel>
+          <CheckboxLabel><CheckboxInput checked={permissions.manageGuide} onChange={(e) => setPerm('manageGuide', e.target.checked)} /> Manage Guide</CheckboxLabel>
           <HintText style={{ marginLeft: '24px', display: 'block' }}>Can by default have an admin and can manage articles, themes, and settings.</HintText>
         </CheckboxGroup>
       </SettingsCapsule>
@@ -1625,24 +1806,24 @@ export default function RoleDetail() {
             <PermissionBlock tags={['reporting']}>
               <Label style={{ marginBottom: '12px' }}>Explore permissions</Label>
               <RadioGroup>
-                <RadioLabel><RadioInput name="explore" /> No access</RadioLabel>
-                <RadioLabel><RadioInput name="explore" defaultChecked /> View reports</RadioLabel>
-                <RadioLabel><RadioInput name="explore" /> Create reports</RadioLabel>
-                <RadioLabel><RadioInput name="explore" /> Create reports and manage permissions</RadioLabel>
+                <RadioLabel><RadioInput name="explore" checked={permissions.explore === 'none'} onChange={() => setPerm('explore', 'none')} /> No access</RadioLabel>
+                <RadioLabel><RadioInput name="explore" checked={permissions.explore === 'view'} onChange={() => setPerm('explore', 'view')} /> View reports</RadioLabel>
+                <RadioLabel><RadioInput name="explore" checked={permissions.explore === 'create'} onChange={() => setPerm('explore', 'create')} /> Create reports</RadioLabel>
+                <RadioLabel><RadioInput name="explore" checked={permissions.explore === 'manage'} onChange={() => setPerm('explore', 'manage')} /> Create reports and manage permissions</RadioLabel>
               </RadioGroup>
             </PermissionBlock>
 
             <PermissionBlock tags={['reporting']}>
               <SubSectionHeader>Reports permissions</SubSectionHeader>
               <CheckboxGroup>
-                <CheckboxLabel><CheckboxInput /> Refer to the Reports tab in Support, not reports within Explore. These who can also export data.</CheckboxLabel>
+                <CheckboxLabel><CheckboxInput checked={permissions.supportReports} onChange={(e) => setPerm('supportReports', e.target.checked)} /> Refer to the Reports tab in Support, not reports within Explore. These who can also export data.</CheckboxLabel>
               </CheckboxGroup>
             </PermissionBlock>
 
             <PermissionBlock tags={['reporting']}>
               <SubSectionHeader>View Talk dashboard</SubSectionHeader>
               <CheckboxGroup>
-                <CheckboxLabel><CheckboxInput defaultChecked /> Can track phone calls on the Talk dashboard</CheckboxLabel>
+                <CheckboxLabel><CheckboxInput checked={permissions.talkDashboard} onChange={(e) => setPerm('talkDashboard', e.target.checked)} /> Can track phone calls on the Talk dashboard</CheckboxLabel>
               </CheckboxGroup>
             </PermissionBlock>
           </>
@@ -1693,39 +1874,129 @@ export default function RoleDetail() {
             </AiAgentsWrap>
           )
         }
-        return (
+        const capsule = (
           <SettingsCapsule
-            key={p.id}
             title={p.name}
             description={
               p.id === 'knowledge' && isPanelVersion
                 ? 'Choose product access and whether this role can manage Knowledge.'
-                : `Choose whether this role can access ${p.name}.`
+                : (isDenseQa && p.id === 'qa')
+                  ? 'Choose an access level, then refine permissions by job if needed.'
+                  : (isDomainMapQa && p.id === 'qa')
+                    ? 'Choose an access level, then open a domain to refine its settings.'
+                    : (isLayerCakeQa && p.id === 'qa')
+                      ? 'Inherit from role type; add only the exceptions this role needs.'
+                      : (isLayerCakeV65Qa && p.id === 'qa')
+                        ? 'Choose a type, then customize permissions in place.'
+                        : (isSectionedV7Qa && p.id === 'qa')
+                          ? 'Choose a type, then customize permissions by job section.'
+                          : `Choose whether this role can access ${p.name}.`
             }
             searchText={withTags(
               p.id,
               p.disabled
                 ? 'Subscription limit reached'
-                : productAccessSearchText(p, {
-                    directAccess: isPanelVersion,
-                    includeManage: p.id === 'knowledge' && isPanelVersion,
-                  }),
+                : (isDenseQa && p.id === 'qa')
+                  ? qaPermissionsSearchText()
+                  : (isDomainMapQa && p.id === 'qa')
+                    ? qaDomainMapSearchText()
+                    : (isLayerCakeQa && p.id === 'qa')
+                      ? qaLayerCakeSearchText()
+                      : (isLayerCakeV65Qa && p.id === 'qa')
+                        ? qaLayerCakeV65SearchText()
+                        : (isSectionedV7Qa && p.id === 'qa')
+                          ? qaSectionedV7SearchText()
+                          : productAccessSearchText(p, {
+                              directAccess: isPanelVersion,
+                              includeManage: p.id === 'knowledge' && isPanelVersion,
+                            }),
             )}
             {...capsuleProps(p.id)}
           >
             {p.disabled
               ? <DisabledProductNote>Subscription limit reached</DisabledProductNote>
-              : (
-                <ProductAccessSection
-                  roleId={aiAgentsKey}
-                  product={p}
-                  query={q}
-                  directAccess={isPanelVersion}
-                  includeManageKnowledge={p.id === 'knowledge' && isPanelVersion}
-                />
-              )}
+              : (isDenseQa && p.id === 'qa')
+                ? (
+                  <QaDensePermissions
+                    key={rolePackage || 'qa'}
+                    roleId={aiAgentsKey}
+                    query={q}
+                    packageAccessLevel={
+                      rolePackage
+                        ? productsForPackage(rolePackage).qa
+                        : undefined
+                    }
+                    onPackageDivergenceChange={setQaPackageDiverged}
+                  />
+                )
+                : (isDomainMapQa && p.id === 'qa')
+                  ? (
+                    <QaDomainMapPermissions
+                      key={rolePackage || 'qa-map'}
+                      roleId={aiAgentsKey}
+                      query={q}
+                      packageAccessLevel={
+                        rolePackage
+                          ? productsForPackage(rolePackage).qa
+                          : undefined
+                      }
+                      onPackageDivergenceChange={setQaPackageDiverged}
+                    />
+                  )
+                  : (isLayerCakeQa && p.id === 'qa')
+                    ? (
+                      <QaLayerCakePermissions
+                        key={rolePackage || 'qa-layers'}
+                        roleId={aiAgentsKey}
+                        query={q}
+                        packageAccessLevel={
+                          rolePackage
+                            ? productsForPackage(rolePackage).qa
+                            : undefined
+                        }
+                        onPackageDivergenceChange={setQaPackageDiverged}
+                      />
+                    )
+                    : (isLayerCakeV65Qa && p.id === 'qa')
+                      ? (
+                        <QaLayerCakePermissionsV65
+                          key={rolePackage || 'qa-layers-65'}
+                          roleId={aiAgentsKey}
+                          query={q}
+                          packageAccessLevel={
+                            rolePackage
+                              ? productsForPackage(rolePackage).qa
+                              : undefined
+                          }
+                          onPackageDivergenceChange={setQaPackageDiverged}
+                        />
+                      )
+                      : (isSectionedV7Qa && p.id === 'qa')
+                        ? (
+                          <QaSectionedPermissionsV7
+                            key={rolePackage || 'qa-sectioned-v7'}
+                            roleId={aiAgentsKey}
+                            query={q}
+                            packageAccessLevel={
+                              rolePackage
+                                ? productsForPackage(rolePackage).qa
+                                : undefined
+                            }
+                            onPackageDivergenceChange={setQaPackageDiverged}
+                          />
+                        )
+                        : (
+                          <ProductAccessSection
+                            roleId={aiAgentsKey}
+                            product={p}
+                            query={q}
+                            directAccess={isPanelVersion}
+                            includeManageKnowledge={p.id === 'knowledge' && isPanelVersion}
+                          />
+                        )}
           </SettingsCapsule>
         )
+        return <Fragment key={p.id}>{capsule}</Fragment>
       })}
       </PermissionFilterProvider>
       <BottomSpacer />

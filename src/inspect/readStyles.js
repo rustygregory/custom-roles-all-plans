@@ -348,7 +348,14 @@ export function readElementDetails(el) {
   return { rows, copyText, title }
 }
 
-/** Pick the best element under a point inside the inspect root. */
+/* Garden mounts the dialog inside the backdrop — check dialog before scrim. */
+const MODAL_DIALOG_SEL = '[data-garden-id="modals.modal"]'
+const MODAL_BACKDROP_SEL = '[data-garden-id="modals.backdrop"]'
+
+/** Pick the best element under a point inside the inspect root.
+ *  Open modals (portaled to body) are inspectable; the scrim blocks
+ *  hits so nothing behind it is detected.
+ */
 export function elementFromPointInRoot(clientX, clientY, root) {
   if (!root) return null
   const stack = document.elementsFromPoint(clientX, clientY)
@@ -356,6 +363,17 @@ export function elementFromPointInRoot(clientX, clientY, root) {
     if (!(el instanceof Element)) continue
     if (el.closest('[data-inspect-ui="true"]')) continue
     if (el.closest('[data-comment-ui="true"]')) continue
+
+    /* Modal dialog (child of backdrop) — inspect its contents. */
+    const modal = el.closest(MODAL_DIALOG_SEL)
+    if (modal) {
+      if (el === modal) continue
+      return el
+    }
+
+    /* Bare scrim — stop; do not fall through to the dimmed page. */
+    if (el.closest(MODAL_BACKDROP_SEL)) return null
+
     if (!root.contains(el)) continue
     if (el === root) continue
     return el

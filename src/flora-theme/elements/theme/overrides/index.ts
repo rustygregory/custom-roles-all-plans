@@ -6,9 +6,10 @@ import { iconButton } from './buttons/iconButton';
 import { checkbox } from './forms/checkbox';
 import { radio } from './forms/radio';
 import { toggle } from './forms/toggle';
+import { inputLabel, fieldsetLegend } from './forms/label';
 
 // Modals
-import { modal, modalFooterItem } from './modals/modal';
+import { modal, modalHeader, modalBody, modalFooter, modalFooterItem } from './modals/modal';
 import { drawerModal, drawerModalClose } from './modals/drawerModal';
 import { tooltipDialog, tooltipDialogBody, tooltipDialogFooter } from './modals/tooltipDialog';
 
@@ -29,10 +30,15 @@ export const forms = {
   'forms.checkbox': checkbox,
   'forms.radio': radio,
   'forms.toggle': toggle,
+  'forms.input_label': inputLabel,
+  'forms.fieldset_legend': fieldsetLegend,
 };
 
 export const modals = {
   'modals.modal': modal,
+  'modals.header': modalHeader,
+  'modals.body': modalBody,
+  'modals.footer': modalFooter,
   'modals.footer_item': modalFooterItem,
   'modals.drawer': drawerModal,
   'modals.drawer.close': drawerModalClose,

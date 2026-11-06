@@ -5,18 +5,89 @@
    Keep it concise: a short summary, then a few bullets per section. */
 export const versionNotes = [
   {
-    versionId: 'v4',
-    date: 'Oct 2026',
-    summary: 'PM talking-point concept for Workforce Management on Create role: one-way WFM role assignment opt-in, WFM role picker, and nested placeholder permission groups. Not finalized product scope.',
+    versionId: 'v7',
+    date: 'Nov 2026',
+    summary: 'Combines V4 job sections with V6.5 table patterns: each QA group is its own collapsible Flora table.',
     sections: [
       {
-        title: 'Workforce Management capsule',
+        title: 'Sectioned permission tables',
         bullets: [
-          'New section heading peer to Settings/Products: Workforce Management (WFM)',
-          'WFM role assignment capsule: opt-in, irreversible alert, WFM role picker, then Tickets-style permission sections',
-          'After opt-in: Scheduling, Forecasting, and Team management appear as flat subsections below the picker',
+          'Review work, Conduct reviews, Coaching and calibration, Workspace, Reporting, and Admin — each a collapsible table',
+          'Same V6.5 patterns per table: select-all, Added/Removed Status, static N permissions counter, hover/focus only',
+          'Access summary + Reset / Open all; role type radios and Customized tag carried over',
+        ],
+      },
+    ],
+  },
+  {
+    versionId: 'v6.5',
+    date: 'Nov 2026',
+    summary: 'V6 simplified: one Customize permissions table. Checkboxes stay in place; Added/Removed tags mark deltas from the role type.',
+    sections: [
+      {
+        title: 'Customize permissions',
+        bullets: [
+          'Single Flora table (grouped); checkbox grants/revokes vs type preset without moving rows',
+          'Added / Removed tags inline; Access summary accordion for the resolved checklist; Reset to default',
+        ],
+      },
+    ],
+  },
+  {
+    versionId: 'v6',
+    date: 'Nov 2026',
+    summary: 'Same role type + WFM as V4, but QA uses a layer cake: Account default → Role type → This role. The role only stores overrides (thin delta).',
+    sections: [
+      {
+        title: 'QA layer cake',
+        bullets: [
+          'Role type radios, then stroke accordions: Overrides, Add an exception, Full effective access',
+          'Exception table matches V6.5: select-all, flat rows, Added/Removed Status tags, hover/focus only',
+        ],
+      },
+    ],
+  },
+  {
+    versionId: 'v5',
+    date: 'Nov 2026',
+    summary: 'Same role type + WFM as V4, but QA uses a domain map: pick Reviews / Coaching / Workspaces / Reporting / Admin, then edit only that domain’s settings.',
+    sections: [
+      {
+        title: 'QA domain map',
+        bullets: [
+          'Map of five conceptual domains (not product screens); click one to see ~6–14 settings',
+          'Breadcrumb All domains / {domain}; search highlights or opens matching domains',
+          'Admin / Agent / Reviewer presets, Customized tag, and Reset to default carried over from V4',
+        ],
+      },
+    ],
+  },
+  {
+    versionId: 'v4',
+    date: 'Nov 2026',
+    summary: 'Role-type packages (Admin / Agent / Reviewer), WFM role assignment, and dense QA accordion permissions in one exploration.',
+    sections: [
+      {
+        title: 'Role type',
+        bullets: [
+          'Choose a role type modal on Create role; Role type radios on the create form',
+          'Admin / Agent / Reviewer packages seed settings and product access',
+        ],
+      },
+      {
+        title: 'Workforce Management',
+        bullets: [
+          'WFM section peer to Settings/Products: one-way role assignment opt-in, WFM role picker, nested permission groups',
           'Illustrative WFM roles: Agent / Admin / Team Lead / Scheduler',
           'Filter drawer Group list includes WFM alongside Settings and Products',
+        ],
+      },
+      {
+        title: 'QA accordion settings',
+        bullets: [
+          'Inside the Quality assurance product capsule: Admin / Agent / Reviewer radios seed ~40 fine-grained permissions',
+          'Custom changes persist per role type when switching radios; Customized tag; Reset to default (text) + Open all (outline)',
+          'Job groups as stroke accordions; capsule and groups start closed — expand QA to explore',
         ],
       },
     ],

@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import styled from 'styled-components'
 import { useNavigate } from 'react-router-dom'
 import { Anchor } from '@zendeskgarden/react-buttons'
 import { useAppContext } from '../context/AppContext'
 import Breadcrumbs from './Breadcrumbs'
+import CreateRoleTypeModal from './CreateRoleTypeModal'
 
 const Container = styled.div`
   padding: 24px 32px;
@@ -146,14 +148,34 @@ const CountCell = styled.span`
 
 export default function RolesList() {
   const navigate = useNavigate()
-  const { roles, roleAssignments } = useAppContext()
+  const { roles, roleAssignments, version } = useAppContext()
+  const [showRoleTypeModal, setShowRoleTypeModal] = useState(false)
+  /* Role-type packages — V4 accordion, V5 domain map, V6 layer cake. */
+  const isRolePackageVersion = version === 'v4' || version === 'v5' || version === 'v6' || version === 'v6.5' || version === 'v7'
 
   /* The count is the assignment list, nothing else — seeded roles start with
      their rosters, created roles start empty and grow as members are assigned. */
   const memberCount = (role) => (roleAssignments[role.id] || []).length
 
+  const handleCreateRole = () => {
+    if (isRolePackageVersion) {
+      setShowRoleTypeModal(true)
+      return
+    }
+    navigate('/roles/create')
+  }
+
   return (
     <Container>
+      {isRolePackageVersion && showRoleTypeModal && (
+        <CreateRoleTypeModal
+          onClose={() => setShowRoleTypeModal(false)}
+          onContinue={(rolePackage) => {
+            setShowRoleTypeModal(false)
+            navigate('/roles/create', { state: { rolePackage } })
+          }}
+        />
+      )}
       <Breadcrumbs items={[
         { label: 'People' },
         { label: 'Team' },
@@ -171,7 +193,7 @@ export default function RolesList() {
         </div>
         <HeaderActions>
           <CompareLink>Compare roles</CompareLink>
-          <AddButton onClick={() => navigate('/roles/create')}>
+          <AddButton onClick={handleCreateRole}>
             Create role
           </AddButton>
         </HeaderActions>

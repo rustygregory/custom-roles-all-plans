@@ -4,7 +4,7 @@ import { roles as defaultRoles, defaultRoleAssignments } from '../data/mockData'
 const AppContext = createContext()
 
 export function AppProvider({ children }) {
-  // Prototype-bar version. V4 (WFM concept) is the default for this review.
+  // Prototype-bar version. V4 role type + accordion settings is the default.
   const [version, setVersion] = useState('v4')
 
   /* AI agents opt-in is per role: roleId -> { optedIn, saved, accessLevel }.

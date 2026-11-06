@@ -60,10 +60,14 @@ const WorkArea = styled.div`
 `
 
 const VERSIONS = [
+  { id: 'v7', label: 'V7 QA sectioned tables' },
+  { id: 'v6.5', label: 'V6.5 QA customize permissions' },
+  { id: 'v6', label: 'V6 QA layer cake (inherit → override)' },
+  { id: 'v5', label: 'V5 QA domain map' },
+  { id: 'v4', label: 'V4 Role type and accordion settings' },
   { id: 'v2', label: 'V2 Access change alerts' },
   { id: 'v2.5', label: 'V2.5 Access change preview page' },
   { id: 'v3', label: 'V3 Redesign, filter capsules' },
-  { id: 'v4', label: 'V4 WFM role assignment concept' },
   { id: 'v3.5', label: 'V3.5 Redesign, filter capsules and items', archived: true },
   { id: 'v1', label: 'V1', archived: true },
 ]
