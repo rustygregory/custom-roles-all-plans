@@ -1052,23 +1052,31 @@ export default function RoleDetail() {
           description: descValue.trim(),
         })
       }
-      setSavedRoleId(newId)
       if (aiAgentsState.optedIn) {
         // The draft's opt-in moves onto the saved role and becomes permanent.
         updateAiAgentsState(newId, { ...aiAgentsState, saved: true })
         setAiAgentsRoleId(newId)
       }
       copyProductAccess('create', newId)
+      saveProductAccess(newId)
       // The draft is spent — the next Create role starts opted out.
       updateAiAgentsState('create', { optedIn: false, saved: false, accessLevel: null })
-    } else if (!isCreate && aiAgentsState.optedIn) {
+      setToastMessage('Role created')
+      setShowToast(true)
+      setTimeout(() => setShowToast(false), 4000)
+      /* Land on the saved role URL so the Team members side panel matches
+         edit mode in every version (V4+ create used to stay on /create). */
+      navigate(`/roles/${newId}`, { replace: true })
+      return
+    }
+    if (!isCreate && aiAgentsState.optedIn) {
       updateAiAgentsState(id, { saved: true })
       setAiAgentsRoleId(id)
     }
     if (!isCreate) {
       saveProductAccess(id)
     }
-    setToastMessage(isCreate ? 'Role created' : 'Role saved successfully')
+    setToastMessage('Role saved successfully')
     setShowToast(true)
     setTimeout(() => setShowToast(false), 4000)
   }
@@ -2002,84 +2010,93 @@ export default function RoleDetail() {
       <BottomSpacer />
         </Container>
 
-        {hasSaved && (
-          <SidePanel>
-            <SidePanelTitle>Team members ({assignedMembers.length})</SidePanelTitle>
-            {assignedMembers.length === 0 ? (
-              <EmptyState>
-                <EmptyStateTitle>No one in sight</EmptyStateTitle>
-                <EmptyStateText>
-                  There's nobody in this role. You can assign it to team members via their profiles.
-                </EmptyStateText>
-                <Button onClick={() => setShowAssignModal(true)}>Assign role</Button>
-              </EmptyState>
-            ) : (
-              <>
-                <SidePanelHint>
-                  You can assign this role to team members via their profiles. To change roles
-                  for a team member in this role, select their name to go to their profile.
-                </SidePanelHint>
-                {showScaledSummary && (
-                  <SummaryAccessWarning type="warning" role="note">
-                    <FilledWarningIcon />
-                    <Alert.Title>
-                      Access changed for {scaledPreview.affectedMemberCount} team member
-                      {scaledPreview.affectedMemberCount === 1 ? '' : 's'}
-                    </Alert.Title>
-                    <PreviewAccessAnchor
-                      href={`#/roles/${currentRoleId}/access-preview`}
-                      isUnderlined
-                      onClick={(e) => {
-                        e.preventDefault()
-                        navigate(`/roles/${currentRoleId}/access-preview`)
-                      }}
+        {/* Always show the Team members column — including create — so V4+
+            matches earlier versions after save and keeps the assign affordance
+            visible on the right. Assign stays disabled until the role exists. */}
+        <SidePanel>
+          <SidePanelTitle>Team members ({assignedMembers.length})</SidePanelTitle>
+          {!hasSaved ? (
+            <EmptyState>
+              <EmptyStateTitle>No one in sight</EmptyStateTitle>
+              <EmptyStateText>
+                Save this role to assign it to team members.
+              </EmptyStateText>
+              <Button isDisabled>Assign role</Button>
+            </EmptyState>
+          ) : assignedMembers.length === 0 ? (
+            <EmptyState>
+              <EmptyStateTitle>No one in sight</EmptyStateTitle>
+              <EmptyStateText>
+                There's nobody in this role. You can assign it to team members via their profiles.
+              </EmptyStateText>
+              <Button onClick={() => setShowAssignModal(true)}>Assign role</Button>
+            </EmptyState>
+          ) : (
+            <>
+              <SidePanelHint>
+                You can assign this role to team members via their profiles. To change roles
+                for a team member in this role, select their name to go to their profile.
+              </SidePanelHint>
+              {showScaledSummary && (
+                <SummaryAccessWarning type="warning" role="note">
+                  <FilledWarningIcon />
+                  <Alert.Title>
+                    Access changed for {scaledPreview.affectedMemberCount} team member
+                    {scaledPreview.affectedMemberCount === 1 ? '' : 's'}
+                  </Alert.Title>
+                  <PreviewAccessAnchor
+                    href={`#/roles/${currentRoleId}/access-preview`}
+                    isUnderlined
+                    onClick={(e) => {
+                      e.preventDefault()
+                      navigate(`/roles/${currentRoleId}/access-preview`)
+                    }}
+                  >
+                    Preview team members access change
+                  </PreviewAccessAnchor>
+                  <SummaryWarningList>
+                    {scaledPreview.products.map((p) => (
+                      <li key={p.id}>{p.name}</li>
+                    ))}
+                  </SummaryWarningList>
+                </SummaryAccessWarning>
+              )}
+              <MemberTable>
+                <MemberTableHead>Name</MemberTableHead>
+                {assignedMembers.map(m => {
+                  /* V2.5 uses the summary warning above the rows; Counselor is a
+                     seeded existing role with no opt-in preview banners. */
+                  const changes = (isCounselor || isScaledSimplified) ? [] : warningsFor(m)
+                  return (
+                  <MemberRow key={m.id}>
+                    <MemberLink
+                      onClick={() => navigate(`/team-members/${m.id}`, {
+                        state: { fromRoleId: currentRoleId },
+                      })}
                     >
-                      Preview team members access change
-                    </PreviewAccessAnchor>
-                    <SummaryWarningList>
-                      {scaledPreview.products.map((p) => (
-                        <li key={p.id}>{p.name}</li>
-                      ))}
-                    </SummaryWarningList>
-                  </SummaryAccessWarning>
-                )}
-                <MemberTable>
-                  <MemberTableHead>Name</MemberTableHead>
-                  {assignedMembers.map(m => {
-                    /* V2.5 uses the summary warning above the rows; Counselor is a
-                       seeded existing role with no opt-in preview banners. */
-                    const changes = (isCounselor || isScaledSimplified) ? [] : warningsFor(m)
-                    return (
-                    <MemberRow key={m.id}>
-                      <MemberLink
-                        onClick={() => navigate(`/team-members/${m.id}`, {
-                          state: { fromRoleId: currentRoleId },
-                        })}
-                      >
-                        {m.name}
-                      </MemberLink>
-                      {changes.length > 0 && (
-                        <AccessWarning type="warning" role="note">
-                          <FilledWarningIcon />
-                          <Alert.Title>{changes.length > 1 ? 'Access changes' : 'Access change'}</Alert.Title>
-                          <WarningChangeList>
-                            {changes.map(c => (
-                              <div key={c.key}>
-                                <div>{c.product}</div>
-                                <div>&bull; {c.body}</div>
-                              </div>
-                            ))}
-                          </WarningChangeList>
-                        </AccessWarning>
-                      )}
-                    </MemberRow>
-                    )
-                  })}
-                </MemberTable>
-              </>
-            )}
-          </SidePanel>
-        )}
+                      {m.name}
+                    </MemberLink>
+                    {changes.length > 0 && (
+                      <AccessWarning type="warning" role="note">
+                        <FilledWarningIcon />
+                        <Alert.Title>{changes.length > 1 ? 'Access changes' : 'Access change'}</Alert.Title>
+                        <WarningChangeList>
+                          {changes.map(c => (
+                            <div key={c.key}>
+                              <div>{c.product}</div>
+                              <div>&bull; {c.body}</div>
+                            </div>
+                          ))}
+                        </WarningChangeList>
+                      </AccessWarning>
+                    )}
+                  </MemberRow>
+                  )
+                })}
+              </MemberTable>
+            </>
+          )}
+        </SidePanel>
       </ScrollArea>
 
       <BottomBar>
