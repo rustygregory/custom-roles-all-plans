@@ -11,7 +11,7 @@
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
   },
-  "homepage": "https://turbo-adventure-lk4wen7.pages.github.io/",
+  "homepage": "https://rustygregory.github.io/custom-roles-all-plans/",
   "dependencies": {
     "@zendeskgarden/react-avatars": "^9.15.6",
     "@zendeskgarden/react-breadcrumbs": "^9.16.1",

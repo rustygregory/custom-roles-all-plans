@@ -12,6 +12,6 @@ const buildDate = [
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/',
+  base: '/custom-roles-all-plans/',
   define: { __BUILD_DATE__: JSON.stringify(buildDate) },
 })
